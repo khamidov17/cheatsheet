@@ -258,13 +258,22 @@ async function runGeminiAPI(prompt) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error('GEMINI_API_KEY not set');
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-    const response = await axios.post(url, {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 8192, temperature: 0.7 }
-    }, { timeout: 120000 });
-    const candidates = response.data.candidates;
-    if (!candidates || candidates.length === 0) throw new Error('No response from Gemini API');
-    return candidates[0].content.parts.map(p => p.text).join('');
+    try {
+        const response = await axios.post(url, {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: 8192, temperature: 0.7 }
+        }, { timeout: 120000 });
+        const candidates = response.data.candidates;
+        if (!candidates || candidates.length === 0) throw new Error('No response from Gemini API');
+        return candidates[0].content.parts.map(p => p.text).join('');
+    } catch (e) {
+        if (e.response && e.response.data) {
+            console.error('Gemini API Error Response:', JSON.stringify(e.response.data, null, 2));
+            throw new Error(`Gemini API Error: ${e.response.data.error?.message || JSON.stringify(e.response.data)}`);
+        }
+        console.error('Gemini Request Error:', e.message);
+        throw new Error(`Gemini Error: ${e.message}`);
+    }
 }
 
 async function runGemini(prompt) {

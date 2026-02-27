@@ -8,6 +8,7 @@ const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
 const axios = require('axios');
 const cheerio = require('cheerio');
+const { kv } = require('@vercel/kv'); // Vercel KV Database
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,20 +27,58 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 const upload = multer({ dest: uploadDir, limits: { fileSize: 20 * 1024 * 1024 } });
 
 // ============================================================
-// DATABASE (JSON file local, in-memory on Vercel)
+// DATABASE (Vercel KV or local fallback)
 // ============================================================
-const DB_FILE = process.env.VERCEL ? '/tmp/db.json' : path.join(__dirname, 'db.json');
-let db = { users: {}, devices: {} };
-try {
-    if (fs.existsSync(DB_FILE)) {
-        const raw = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-        if (raw.users) db.users = raw.users;
-        if (raw.devices) db.devices = raw.devices;
-    }
-} catch (e) { db = { users: {}, devices: {} }; }
+const USE_KV = !!process.env.KV_URL;
+const DB_FILE = path.join(__dirname, 'users.json');
 
-function saveDb() {
-    try { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); } catch (e) { }
+// Local fallback memory
+let localDb = { users: {}, devices: {} };
+if (!USE_KV) {
+    try {
+        if (fs.existsSync(DB_FILE)) {
+            const raw = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+            if (raw.users) localDb.users = raw.users;
+            if (raw.devices) localDb.devices = raw.devices;
+            // Migrate old deviceCounts if present
+            if (raw.deviceCounts) {
+                for (let k in raw.deviceCounts) {
+                    if (!localDb.devices[k]) localDb.devices[k] = { count: raw.deviceCounts[k], history: [], createdAt: Date.now() };
+                }
+            }
+        }
+    } catch (e) { localDb = { users: {}, devices: {} }; }
+}
+
+function saveLocalDb() {
+    if (USE_KV) return;
+    try { fs.writeFileSync(DB_FILE, JSON.stringify(localDb, null, 2)); } catch (e) { }
+}
+
+async function getUser(email) {
+    if (USE_KV) return await kv.hget('users', email);
+    return localDb.users[email];
+}
+async function saveUser(email, data) {
+    if (USE_KV) await kv.hset('users', { [email]: data });
+    else { localDb.users[email] = data; saveLocalDb(); }
+}
+async function getAllUsers() {
+    if (USE_KV) return (await kv.hgetall('users')) || {};
+    return localDb.users;
+}
+
+async function getDevice(id) {
+    if (USE_KV) return await kv.hget('devices', id);
+    return localDb.devices[id];
+}
+async function saveDevice(id, data) {
+    if (USE_KV) await kv.hset('devices', { [id]: data });
+    else { localDb.devices[id] = data; saveLocalDb(); }
+}
+async function getAllDevices() {
+    if (USE_KV) return (await kv.hgetall('devices')) || {};
+    return localDb.devices;
 }
 
 // ============================================================
@@ -69,20 +108,26 @@ function adminAuth(req, res, next) {
 // ============================================================
 // DEVICE STATE (Free tier)
 // ============================================================
-app.get('/api/device/:deviceId', (req, res) => {
+app.get('/api/device/:deviceId', async (req, res) => {
     const { deviceId } = req.params;
-    const device = db.devices[deviceId];
-    res.json({ history: device ? device.history : [] });
+    const device = await getDevice(deviceId);
+    res.json({ history: device ? device.history : [], count: device ? device.count : 0 });
 });
 
-app.post('/api/device/:deviceId/history', (req, res) => {
+app.post('/api/device/:deviceId/history', async (req, res) => {
     const { deviceId } = req.params;
-    if (!db.devices[deviceId]) {
-        db.devices[deviceId] = { history: [], createdAt: Date.now() };
-    }
-    db.devices[deviceId].history = req.body;
-    saveDb();
+    let device = await getDevice(deviceId) || { history: [], count: 0, createdAt: Date.now() };
+    device.history = req.body;
+    await saveDevice(deviceId, device);
     res.json({ success: true });
+});
+
+app.post('/api/device/:deviceId/increment', async (req, res) => {
+    const { deviceId } = req.params;
+    let device = await getDevice(deviceId) || { history: [], count: 0, createdAt: Date.now() };
+    device.count = (device.count || 0) + 1;
+    await saveDevice(deviceId, device);
+    res.json({ success: true, count: device.count });
 });
 
 // ============================================================
@@ -97,25 +142,25 @@ function decodeGoogleJWT(token) {
     } catch (e) { return null; }
 }
 
-app.post('/api/auth/google', (req, res) => {
+app.post('/api/auth/google', async (req, res) => {
     const { credential } = req.body;
     if (!credential) return res.status(400).json({ error: 'No credential' });
 
     const user = decodeGoogleJWT(credential);
     if (!user || !user.email) return res.status(400).json({ error: 'Invalid token' });
 
-    if (!db.users[user.email]) {
-        db.users[user.email] = {
+    let u = await getUser(user.email);
+    if (!u) {
+        u = {
             email: user.email, name: user.name, picture: user.picture,
             isApproved: false, generationCount: 0, history: [], createdAt: Date.now()
         };
     } else {
-        db.users[user.email].name = user.name;
-        db.users[user.email].picture = user.picture;
+        u.name = user.name;
+        u.picture = user.picture;
     }
-    saveDb();
+    await saveUser(user.email, u);
 
-    const u = db.users[user.email];
     res.json({
         success: true,
         user: {
@@ -127,9 +172,9 @@ app.post('/api/auth/google', (req, res) => {
     });
 });
 
-app.get('/api/user/:email', (req, res) => {
+app.get('/api/user/:email', async (req, res) => {
     const email = decodeURIComponent(req.params.email);
-    const u = db.users[email];
+    const u = await getUser(email);
     if (!u) return res.json({ user: null });
     res.json({
         user: {
@@ -142,49 +187,71 @@ app.get('/api/user/:email', (req, res) => {
     });
 });
 
-app.post('/api/user/:email/history', (req, res) => {
+app.post('/api/user/:email/history', async (req, res) => {
     const email = decodeURIComponent(req.params.email);
-    if (!db.users[email]) return res.status(404).json({ error: 'User not found' });
-    db.users[email].history = req.body;
-    saveDb();
+    const u = await getUser(email);
+    if (!u) return res.status(404).json({ error: 'User not found' });
+    u.history = req.body;
+    await saveUser(email, u);
     res.json({ success: true });
 });
 
-app.post('/api/user/:email/increment', (req, res) => {
+app.post('/api/user/:email/increment', async (req, res) => {
     const email = decodeURIComponent(req.params.email);
-    if (!db.users[email]) return res.status(404).json({ error: 'User not found' });
-    db.users[email].generationCount = (db.users[email].generationCount || 0) + 1;
-    saveDb();
-    res.json({ success: true, count: db.users[email].generationCount });
+    const u = await getUser(email);
+    if (!u) return res.status(404).json({ error: 'User not found' });
+    u.generationCount = (u.generationCount || 0) + 1;
+    await saveUser(email, u);
+    res.json({ success: true, count: u.generationCount });
 });
 
 // ============================================================
 // ADMIN (protected)
 // ============================================================
-app.get('/api/admin/users', adminAuth, (req, res) => {
-    const users = Object.values(db.users).map(u => ({
-        email: u.email, name: u.name, picture: u.picture,
-        isApproved: u.isApproved,
-        generationCount: u.generationCount || 0,
-        historyCount: (u.history || []).length,
-        createdAt: u.createdAt
-    }));
-    res.json({ users });
+app.get('/api/admin/users', adminAuth, async (req, res) => {
+    try {
+        const dictUsers = await getAllUsers();
+        const dictDevices = await getAllDevices();
+        
+        const users = Object.values(dictUsers || {}).map(u => ({
+            email: u.email, name: u.name, picture: u.picture,
+            isApproved: u.isApproved,
+            generationCount: u.generationCount || 0,
+            historyCount: (u.history || []).length,
+            createdAt: u.createdAt
+        }));
+        
+        const devices = Object.keys(dictDevices || {}).map(id => ({
+            id: id,
+            count: dictDevices[id].count || 0,
+            historyCount: (dictDevices[id].history || []).length,
+            createdAt: dictDevices[id].createdAt
+        }));
+        
+        res.json({ users, devices });
+    } catch(err) {
+        console.error('Admin Fetch error: ', err);
+        res.status(500).json({ error: 'Failed to fetch' });
+    }
 });
 
-app.post('/api/admin/approve', adminAuth, (req, res) => {
+app.post('/api/admin/approve', adminAuth, async (req, res) => {
     const { email } = req.body;
-    if (!email || !db.users[email]) return res.status(404).json({ error: 'User not found' });
-    db.users[email].isApproved = true;
-    saveDb();
+    if (!email) return res.status(404).json({ error: 'User not found' });
+    const u = await getUser(email);
+    if (!u) return res.status(404).json({ error: 'User not found' });
+    u.isApproved = true;
+    await saveUser(email, u);
     res.json({ success: true });
 });
 
-app.post('/api/admin/deny', adminAuth, (req, res) => {
+app.post('/api/admin/deny', adminAuth, async (req, res) => {
     const { email } = req.body;
-    if (!email || !db.users[email]) return res.status(404).json({ error: 'User not found' });
-    db.users[email].isApproved = false;
-    saveDb();
+    if (!email) return res.status(404).json({ error: 'User not found' });
+    const u = await getUser(email);
+    if (!u) return res.status(404).json({ error: 'User not found' });
+    u.isApproved = false;
+    await saveUser(email, u);
     res.json({ success: true });
 });
 
@@ -194,13 +261,15 @@ app.post('/api/admin/deny', adminAuth, (req, res) => {
 app.post('/api/extract/url', async (req, res) => {
     try {
         const { url } = req.body;
-        if (!url) return res.status(400).json({ error: 'URL required' });
-        const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        if (!url) return res.status(400).json({ error: 'No URL provided' });
+        const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 10000 });
         const $ = cheerio.load(response.data);
-        $('script, style, noscript, nav, footer, header').remove();
-        let text = $('body').text().replace(/\s+/g, ' ').trim();
+        $('script, style, noscript, iframe, img, svg, video').remove();
+        const text = $('body').text().replace(/\s+/g, ' ').trim();
         res.json({ text: text.substring(0, 50000) });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.post('/api/extract/file', upload.single('file'), async (req, res) => {
@@ -312,8 +381,9 @@ app.post('/api/summarize-topic', async (req, res) => {
 // GENERATE & CHAT
 // ============================================================
 app.post('/api/generate', upload.array('files', 3), async (req, res) => {
-    const { prompt } = req.body;
+    const { prompt, deviceId } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt required' });
+    
     try {
         let fileContext = '';
         if (req.files && req.files.length > 0) {

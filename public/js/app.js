@@ -13,6 +13,7 @@ window.appState = {
     currentDocId: null,
     currentDocIsAI: false, // true if current doc was AI-generated
     canvasData: [],
+    deviceCount: 0,
     settings: { cols: 5, fontSize: 14, isHandwriting: true, fontFamily: "'Kalam', cursive" }
 };
 
@@ -253,6 +254,7 @@ async function loadDeviceHistory() {
         const res = await fetch(`${API}/device/${window.appState.deviceId}`);
         const data = await res.json();
         window.appState.history = data.history || [];
+        window.appState.deviceCount = data.count || 0;
         renderHistory();
     } catch (e) { }
 }
@@ -461,19 +463,21 @@ function applyTypography() {
 // Store pending generation so we can resume after sign-in
 
 async function generateCheatsheet(topic, files = []) {
-    // If not signed in → prompt Google sign-in, then auto-generate after
+    // If not signed in → check device limits, then prompt Google sign-in
     if (!window.appState.user) {
-        pendingGeneration = { topic, files };
-        window.showToast('Please sign in with Google to generate!');
-        // Trigger Google one-tap prompt
-        if (typeof google !== 'undefined' && google.accounts) {
-            google.accounts.id.prompt((notification) => {
-                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                    window.showToast('Click "Sign in with Google" in the top-right corner.');
-                }
-            });
+        if (window.appState.deviceCount >= 1) {
+            pendingGeneration = { topic, files };
+            window.showToast('Free preview used! Please sign in with Google to generate more.');
+            // Trigger Google one-tap prompt
+            if (typeof google !== 'undefined' && google.accounts) {
+                google.accounts.id.prompt((notification) => {
+                    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                        window.showToast('Click "Sign in with Google" in the top-right corner.');
+                    }
+                });
+            }
+            return;
         }
-        return;
     }
 
     // ---- User IS signed in — proceed with generation ----
@@ -562,6 +566,12 @@ Do NOT wrap in \`\`\`json. Output the raw array only.`;
                 const incData = await incRes.json();
                 window.appState.user.generationCount = incData.count;
                 localStorage.setItem('cheatsheet_google_user', JSON.stringify(window.appState.user));
+            } catch (e) { }
+        } else {
+            try {
+                const incRes = await fetch(`${API}/device/${window.appState.deviceId}/increment`, { method: 'POST' });
+                const incData = await incRes.json();
+                window.appState.deviceCount = incData.count;
             } catch (e) { }
         }
 

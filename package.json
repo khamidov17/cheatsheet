@@ -19,6 +19,7 @@
   "license": "ISC",
   "dependencies": {
     "@vercel/analytics": "^1.4.1",
+    "@vercel/kv": "^3.0.0",
     "axios": "^1.13.5",
     "body-parser": "^2.2.2",
     "cheerio": "^1.2.0",
@@ -26,6 +27,7 @@
     "express": "^5.2.1",
     "mammoth": "^1.11.0",
     "multer": "^2.0.2",
-    "pdf-parse": "^1.1.1"
+    "pdf-parse": "^1.1.1",
+    "uuid": "^13.0.0"
   }
 }

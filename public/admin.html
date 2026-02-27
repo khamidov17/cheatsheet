@@ -151,7 +151,7 @@
 
         .stats {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 16px;
             margin-bottom: 28px;
         }
@@ -380,10 +380,14 @@
                     <div class="label">Free Users</div>
                     <div class="value orange" id="stat-pending">0</div>
                 </div>
+                <div class="stat-card">
+                    <div class="label">Anon Devices</div>
+                    <div class="value" style="color: #6366f1;" id="stat-devices">0</div>
+                </div>
             </div>
 
             <div class="table-container">
-                <div class="table-header">Registered Users</div>
+                <div class="table-header">Registered Users (Google Sign-In)</div>
                 <table>
                     <thead>
                         <tr>
@@ -397,6 +401,25 @@
                     <tbody id="users-tbody">
                         <tr>
                             <td colspan="5" class="empty-state">Loading users...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-container" style="margin-top: 28px;">
+                <div class="table-header">Anonymous Devices (Free Tier Tracking)</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Device ID</th>
+                            <th>Free Sheets Used</th>
+                            <th>Total Documents</th>
+                            <th>First Seen</th>
+                        </tr>
+                    </thead>
+                    <tbody id="devices-tbody">
+                        <tr>
+                            <td colspan="4" class="empty-state">Loading devices...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -469,10 +492,12 @@
                 if (res.status === 401) { doLogout(); return; }
                 const data = await res.json();
                 const users = data.users || [];
+                const devices = data.devices || [];
 
                 document.getElementById('stat-total').textContent = users.length;
                 document.getElementById('stat-approved').textContent = users.filter(u => u.isApproved).length;
                 document.getElementById('stat-pending').textContent = users.filter(u => !u.isApproved).length;
+                document.getElementById('stat-devices').textContent = devices.length;
 
                 const tbody = document.getElementById('users-tbody');
                 if (users.length === 0) {
@@ -496,14 +521,28 @@
                         <td>${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</td>
                         <td>
                             ${u.isApproved
-                                ? `<button class="action-btn deny-btn" onclick="toggleAccess('${u.email}', false)">Revoke Pro</button>`
-                                : `<button class="action-btn approve-btn" onclick="toggleAccess('${u.email}', true)">✓ Approve Pro</button>`
-                            }
+                        ? `<button class="action-btn deny-btn" onclick="toggleAccess('${u.email}', false)">Revoke Pro</button>`
+                        : `<button class="action-btn approve-btn" onclick="toggleAccess('${u.email}', true)">✓ Approve Pro</button>`
+                    }
                         </td>
                     </tr>
                 `).join('');
-            } catch (err) {
-                console.error('Failed to load users:', err);
+
+                const dtbody = document.getElementById('devices-tbody');
+                if (devices.length === 0) {
+                    dtbody.innerHTML = '<tr><td colspan="4" class="empty-state">No anonymous devices tracked yet.</td></tr>';
+                } else {
+                    dtbody.innerHTML = devices.sort((a, b) => b.createdAt - a.createdAt).map(d => `
+                        <tr>
+                            <td style="font-family: monospace; color: #475569;">${escapeHtml(d.id)}</td>
+                            <td style="font-weight: bold; color: ${d.count > 0 ? '#ea580c' : '#64748b'};">${d.count} / 1</td>
+                            <td>${d.historyCount}</td>
+                            <td>${d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '—'}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error('Failed to load users:', e);
             }
         }
 

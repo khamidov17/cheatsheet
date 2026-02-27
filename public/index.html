@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CheatSheetAI</title>
+    <link rel="stylesheet" href="css/themes.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/premium.css">
+    <!-- Clean Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <!-- Handwriting Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Kalam:wght@300;400;700&family=Shadows+Into+Light&family=Architects+Daughter&family=Patrick+Hand&family=Indie+Flower&family=Gochi+Hand&family=Reenie+Beanie&family=Rock+Salt&family=Nothing+You+Could+Do&display=swap"
+        rel="stylesheet">
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        /* Payment Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-box {
+            background: #fff;
+            border-radius: 16px;
+            max-width: 580px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            cursor: pointer;
+            color: #94a3b8;
+        }
+
+        .modal-close:hover {
+            color: #0f172a;
+        }
+
+        .modal-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 6px;
+            color: #0f172a;
+        }
+
+        .modal-subtitle {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-bottom: 20px;
+        }
+
+        .modal-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .modal-step {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .step-num {
+            width: 28px;
+            height: 28px;
+            min-width: 28px;
+            background: #5b4cf5;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+
+        .step-body h4 {
+            font-size: 0.95rem;
+            margin-bottom: 4px;
+        }
+
+        .step-body p {
+            font-size: 0.82rem;
+            color: #64748b;
+        }
+
+        .qr-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 12px;
+        }
+
+        .qr-card {
+            text-align: center;
+            background: #fff;
+            border-radius: 10px;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .qr-card img {
+            width: 100%;
+            max-width: 200px;
+            border-radius: 8px;
+        }
+
+        .qr-card .qr-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #64748b;
+            margin-top: 6px;
+        }
+
+        .modal-footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 0.82rem;
+            color: #94a3b8;
+        }
+
+        .modal-btn {
+            display: block;
+            width: 100%;
+            margin-top: 16px;
+            padding: 12px;
+            background: #5b4cf5;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .modal-btn:hover {
+            filter: brightness(1.1);
+        }
+
+        /* Pro badge */
+        .pro-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: linear-gradient(135deg, #f59e0b, #ef4444);
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 700;
+            border-radius: 10px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
+        /* Generation counter */
+        .gen-counter {
+            font-size: 0.75rem;
+            color: #64748b;
+            text-align: center;
+            margin-top: 6px;
+        }
+
+        /* User profile header */
+        .user-profile-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-profile-bar img {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 1px solid #e2e8f0;
+        }
+
+        .user-profile-bar span {
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .sign-out-btn {
+            background: none;
+            border: 1px solid #e2e8f0;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            cursor: pointer;
+            color: #64748b;
+        }
+
+        .sign-out-btn:hover {
+            background: #f1f5f9;
+        }
+
+        /* Upgrade to Pro button in editor toolbar */
+        .upgrade-btn {
+            background: linear-gradient(135deg, #f59e0b, #ef4444);
+            color: white;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-left: 12px;
+            transition: all 0.2s;
+            white-space: nowrap;
+            animation: pulse-glow 2s infinite;
+        }
+
+        .upgrade-btn:hover {
+            filter: brightness(1.1);
+            transform: scale(1.05);
+        }
+
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 15px 3px rgba(245, 158, 11, 0.25);
+            }
+        }
+    </style>
+</head>
+
+<body class="theme-bright">
+
+    <!-- UPGRADE MODAL -->
+    <div class="modal-overlay" id="payment-modal">
+        <div class="modal-box">
+            <button class="modal-close" id="modal-close">✕</button>
+            <div class="modal-title">🚀 Upgrade to Pro</div>
+            <div class="modal-subtitle">Remove watermarks & export PDF — up to 5 AI-generated cheatsheets.</div>
+
+            <div class="modal-steps">
+                <div class="modal-step">
+                    <div class="step-num">1</div>
+                    <div class="step-body">
+                        <h4>Add Avazbek on WeChat & Send ¥9</h4>
+                        <p>Scan the QR code below to add Avazbek on WeChat. Then send <strong>¥9 RMB</strong> and
+                            include your <strong>Google email</strong> in the message for activation.</p>
+                        <div style="text-align:center; margin-top: 12px;">
+                            <div class="qr-card" style="display:inline-block; max-width:220px;">
+                                <img src="images/wechat_contact.jpg" alt="Add WeChat"
+                                    style="width:100%; max-width:200px; border-radius:8px;">
+                                <div class="qr-label">💬 Add Avazbek on WeChat</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-step">
+                    <div class="step-num">2</div>
+                    <div class="step-body">
+                        <h4>Get Approved</h4>
+                        <p>Once payment is confirmed, your account will be activated within minutes. Watermarks will be
+                            removed and PDF export unlocked!</p>
+                    </div>
+                </div>
+            </div>
+
+            <button class="modal-btn" id="modal-close-btn">Got it!</button>
+            <div class="modal-footer">Send ¥9 + your Google email via WeChat to activate Pro.</div>
+        </div>
+    </div>
+
+    <!-- LANDING VIEW -->
+    <div id="landing-view" class="view-active">
+        <header class="landing-header">
+            <div class="logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="logo-icon">
+                    <path
+                        d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z"
+                        fill="currentColor" />
+                    <path d="M14 2V8H20" fill="white" fill-opacity="0.3" />
+                </svg>
+                CheatSheetAI
+            </div>
+            <div class="user-info" id="user-info">
+                <div id="google-signin-btn"></div>
+                <div id="user-profile" style="display:none;" class="user-profile-bar">
+                    <img id="user-avatar" src="" alt="">
+                    <span id="user-name-display"></span>
+                    <span id="user-approval-badge"></span>
+                    <button class="sign-out-btn" id="sign-out-btn">Sign Out</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- SPLIT SCREEN MAIN -->
+        <main class="landing-split">
+
+            <!-- LEFT: Input / Generate -->
+            <div class="landing-left">
+                <div class="hero">
+                    <div class="hero-badge">✨ AI-Powered Exam Prep</div>
+                    <h1>Turn any topic into the<br><span class="hero-highlight">perfect cheat sheet</span></h1>
+                    <p>Ultra-dense, handwritten-style, color-coded exam notes<br>generated by AI. Ready to print on one
+                        page.</p>
+                    <div class="feature-pills">
+                        <span>⚡ Ultra-Dense</span>
+                        <span>📖 Handwritten Style</span>
+                        <span>✨ Color-Coded</span>
+                    </div>
+                </div>
+
+                <div class="search-container">
+                    <div class="search-box">
+                        <label>What do you need to study?</label>
+                        <input type="text" id="topic-input"
+                            placeholder="e.g. Computer Science | Python — loops, OOP, data structures">
+                        <input type="file" id="front-file-input" multiple accept=".pdf,.docx,.txt"
+                            style="margin-top: 10px; width: 100%; border: 1px dashed #cbd5e1; padding: 10px; background: #f8fafc; font-size: 0.85rem; cursor: pointer; border-radius: 8px; color: #64748b;">
+                        <small style="color: #64748b; margin-top: 5px; display: block;">Optional: Attach syllabus or
+                            notes (up to 3 files, 20MB max)</small>
+                    </div>
+                    <div class="suggestions">
+                        <button class="sugg-btn">Organic Chemistry - Reactions & Mechanisms</button>
+                        <button class="sugg-btn">Linear Algebra - Matrices & Eigenvalues</button>
+                        <button class="sugg-btn">Computer Science | Python — loops, functions, OOP, data structures,
+                            sorting algorithms</button>
+                        <button class="sugg-btn">Data Structures & Algorithms</button>
+                        <button class="sugg-btn">Microeconomics - Supply, Demand & Elasticity</button>
+                        <button class="sugg-btn">Biology - Cell Division & Genetics</button>
+                    </div>
+
+                    <!-- TWO ACTION BUTTONS -->
+                    <button id="generate-btn" class="primary-btn-large">🚀 Generate AI Cheatsheet</button>
+                    <div id="gen-counter" class="gen-counter" style="display:none;"></div>
+                    <button id="blank-btn"
+                        style="width:100%; margin-top:10px; padding:14px; border-radius:8px; border:2px solid #e2e8f0; background:white; font-size:1rem; font-weight:600; color:#475569; cursor:pointer; transition:all 0.2s;">📝
+                        Create Blank Sheet (Free — No Login)</button>
+                </div>
+
+                <!-- History Section -->
+                <div id="history-section" class="history-section hidden">
+                    <div class="history-label">📚 Recent Cheat Sheets</div>
+                    <div id="history-grid" class="history-grid"></div>
+                </div>
+            </div>
+
+            <!-- RIGHT: Handwriting Preview Panel -->
+            <div class="landing-right">
+                <div class="rp-content">
+                    <div class="rp-tagline-wrap">
+                        <div class="rp-sub">Your exam prep, reimagined</div>
+                        <h2 class="rp-title">Prepare a cheatsheet<br><span class="rp-highlight">in your own
+                                handwriting</span><br>for your exam!</h2>
+                    </div>
+
+                    <div class="rp-paper">
+                        <div class="rp-paper-title">Computer Science · Python</div>
+                        <div class="rp-cols">
+                            <div class="rp-section rp-pink">
+                                <div class="rp-h">Variables &amp; Types</div>
+                                <div>• x = 5 → <em>int</em></div>
+                                <div>• s = "hi" → <em>str</em></div>
+                                <div>• arr = [1,2,3] → <em>list</em></div>
+                                <div>• d = {k:v} → <em>dict</em></div>
+                            </div>
+                            <div class="rp-section rp-blue">
+                                <div class="rp-h">Loops</div>
+                                <div>• for i in range(n):</div>
+                                <div>• while cond:</div>
+                                <div>• break / continue</div>
+                                <div>• [x for x in arr]</div>
+                            </div>
+                            <div class="rp-section rp-purple">
+                                <div class="rp-h">Functions</div>
+                                <div>• def f(x, y=0):</div>
+                                <div>• return val</div>
+                                <div>• *args, **kwargs</div>
+                                <div>• lambda x: x+1</div>
+                            </div>
+                            <div class="rp-section rp-green">
+                                <div class="rp-h">OOP</div>
+                                <div>• class Dog:</div>
+                                <div>• def __init__(self):</div>
+                                <div>• self.name = name</div>
+                                <div>• inheritance: (Base)</div>
+                            </div>
+                            <div class="rp-section rp-orange">
+                                <div class="rp-h">Big-O</div>
+                                <div>• O(1) → hash lookup</div>
+                                <div>• O(log n) → binary</div>
+                                <div>• O(n log n) → sort</div>
+                                <div>• O(n²) → nested loop</div>
+                            </div>
+                            <div class="rp-section rp-pink">
+                                <div class="rp-h">Key Methods</div>
+                                <div>• len(arr), arr.sort()</div>
+                                <div>• str.split(), join()</div>
+                                <div>• dict.get(k, def)</div>
+                                <div>• set(), zip(), map()</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rp-bullets">
+                        <span>📝 Handwriting fonts</span>
+                        <span>🎨 Color-coded sections</span>
+                        <span>📥 Export as PDF</span>
+                        <span>🔗 Sync across devices</span>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- EDITOR VIEW -->
+    <div id="editor-view" class="hidden">
+        <header class="editor-toolbar">
+            <div class="toolbar-left">
+                <button id="back-btn" class="icon-btn">← Back</button>
+                <div class="doc-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" />
+                    </svg>
+                </div>
+                <h2 id="editor-topic-title">Cheat Sheet</h2>
+                <button id="upgrade-btn" class="upgrade-btn">⚡ Upgrade to Pro</button>
+            </div>
+
+            <div class="toolbar-center">
+                <div class="tool-group">
+                    <span class="tool-label">Cols</span>
+                    <button class="col-btn" data-cols="3">3</button>
+                    <button class="col-btn" data-cols="4">4</button>
+                    <button class="col-btn active" data-cols="5">5</button>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="tool-group">
+                    <span class="tool-label">T</span>
+                    <button id="font-decrease" class="icon-btn-small">−</button>
+                    <span id="font-size-display" class="tool-val">14</span>
+                    <button id="font-increase" class="icon-btn-small">+</button>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="tool-group toggle-group">
+                    <button id="handwriting-toggle" class="toggle-btn active"><span>📝</span> Handwriting</button>
+                    <button id="regular-toggle" class="toggle-btn"><span>≣</span> Regular</button>
+                </div>
+
+                <div class="divider"></div>
+                <div class="tool-group font-selector-group" id="font-selector-wrapper">
+                    <select id="hw-font-select" class="font-select">
+                        <option value="'Caveat', cursive">Caveat</option>
+                        <option value="'Kalam', cursive" selected>Kalam</option>
+                        <option value="'Shadows Into Light', cursive">Shadows Into Light</option>
+                        <option value="'Architects Daughter', cursive">Architects Daughter</option>
+                        <option value="'Patrick Hand', cursive">Patrick Hand</option>
+                        <option value="'Indie Flower', cursive">Indie Flower</option>
+                        <option value="'Gochi Hand', cursive">Gochi Hand</option>
+                        <option value="'Reenie Beanie', cursive">Reenie Beanie</option>
+                        <option value="'Rock Salt', cursive">Rock Salt</option>
+                        <option value="'Nothing You Could Do', cursive">Nothing You Could Do</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="toolbar-right">
+                <button id="export-pdf-btn" class="export-btn">📥 Export PDF</button>
+            </div>
+        </header>
+
+        <div class="editor-layout">
+            <main class="canvas-container" id="canvas-container">
+                <div id="loading-overlay" class="hidden">
+                    <div class="spinner"></div>
+                    <h3>AI is studying your topic...</h3>
+                    <p>Generating perfect notes and distinct examples.</p>
+                </div>
+                <div class="canvas paper-background font-handwriting" id="main-canvas" style="--columns: 5;">
+                    <!-- Content Generated Here -->
+                </div>
+            </main>
+
+            <!-- Chat Assistant Panel (Right) -->
+            <aside class="chat-panel collapsed" id="chat-panel">
+                <div class="chat-header">
+                    <h3>✨ AI Assistant</h3>
+                    <button id="close-chat" class="icon-btn">✕</button>
+                </div>
+
+                <!-- Prompt examples -->
+                <div class="chat-examples" id="chat-examples">
+                    <div class="chat-examples-label">Try asking:</div>
+                    <button class="chat-example-btn">Add more examples for this topic</button>
+                    <button class="chat-example-btn">Summarize this into key bullet points only</button>
+                    <button class="chat-example-btn">Add a section on common mistakes to avoid</button>
+                </div>
+
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message ai">Hi! I can refine your cheatsheet or answer questions. You can also upload
+                        files (PDF, DOCX, TXT) for me to reference. Try: <em>"Add more examples for OOP"</em></div>
+                </div>
+
+                <!-- File previews -->
+                <div class="chat-files-preview hidden" id="chat-files-preview"></div>
+
+                <div class="chat-input-area">
+                    <label class="file-upload-label" for="chat-file-input"
+                        title="Attach files (PDF, DOCX, TXT — up to 3 files, 20MB each)">📎</label>
+                    <input type="file" id="chat-file-input" multiple accept=".pdf,.docx,.txt,.md" style="display:none">
+                    <input type="text" id="chat-input" placeholder="Ask AI to refine your cheatsheet...">
+                    <button id="send-chat" class="send-btn">↑</button>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Floating chat toggle -->
+    <button id="floating-chat-toggle" class="floating-chat-btn hidden">✨ Ask AI</button>
+
+    <div id="toast-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/canvas.js"></script>
+</body>
+
+</html>

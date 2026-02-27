@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Database (local only)
+db.json
+
+# Uploads
+uploads/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Gemini
+.gemini/

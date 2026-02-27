@@ -1,0 +1,108 @@
+/* premium.css - Adding WOW factor (Glassmorphism, Micro-interactions) */
+
+/* Modern scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(150, 150, 150, 0.3);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(150, 150, 150, 0.5);
+}
+
+/* Glassmorphism Sidebar */
+.sidebar {
+    background: rgba(var(--sidebar-bg-rgb), 0.7) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.topbar {
+    background: rgba(var(--sidebar-bg-rgb), 0.8) !important;
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Enhancing Canvas */
+.canvas {
+    transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease;
+}
+
+.canvas:hover {
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22);
+}
+
+body.theme-dark .canvas:hover {
+    box-shadow: 0 0 40px rgba(96, 165, 250, 0.15), 0 14px 28px rgba(0, 0, 0, 0.5);
+}
+
+/* Sexy Buttons */
+.primary-btn-large {
+    background: linear-gradient(135deg, var(--primary-color), #7c3aed);
+    border: none;
+    box-shadow: 0 4px 15px rgba(91, 76, 245, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.primary-btn-large::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: rgba(255, 255, 255, 0.1);
+    transform: rotate(45deg);
+    transition: all 0.3s ease;
+    opacity: 0;
+}
+
+.primary-btn-large:hover::after {
+    opacity: 1;
+    transform: rotate(45deg) translate(50%, 50%);
+}
+
+.user-id {
+    animation: pulse border 2s infinite;
+}
+
+/* Micro-animations */
+.sheet-section {
+    animation: fadeUp 0.5s ease forward;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.sheet-section:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+}
+
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.chat-panel {
+    background: rgba(var(--sidebar-bg-rgb), 0.85) !important;
+    backdrop-filter: blur(25px);
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+}

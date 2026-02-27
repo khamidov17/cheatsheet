@@ -1,0 +1,53 @@
+:root {
+    --primary-color: #5b4cf5;
+    /* The vibrant purple/blue from the mockups */
+    --bg-color: #fbfbfc;
+    /* Off-white landing background */
+    --text-color: #0f172a;
+    --border-color: #e2e8f0;
+    --global-font: 'Outfit', sans-serif;
+    --hw-font: 'Kalam', cursive;
+    --columns: 5;
+
+    --user-id-bg: #e0e7ff;
+    --user-id-color: #4338ca;
+
+    --toast-bg: #1e293b;
+    --toast-text: #ffffff;
+}
+
+/* Base Theme is "Bright" per requested default for this specific design */
+body.theme-bright {
+    --bg-color: #fbfbfc;
+
+    /* Pen Ink Colors for Realistic Hand-drawn feel */
+    --ink-header-pink: #d946ef;
+    --ink-header-blue: #2563eb;
+    --ink-header-purple: #9333ea;
+    --ink-header-green: #059669;
+    --ink-header-red: #dc2626;
+
+    --ink-body-black: #1e293b;
+    --ink-body-blue: #1e3a8a;
+}
+
+/* We will assign random ink header colors to sections via JS to mimic a student switching pens */
+.ink-section-1 h4 {
+    color: var(--ink-header-pink);
+}
+
+.ink-section-2 h4 {
+    color: var(--ink-header-blue);
+}
+
+.ink-section-3 h4 {
+    color: var(--ink-header-purple);
+}
+
+.ink-section-4 h4 {
+    color: var(--ink-header-green);
+}
+
+.ink-section-5 h4 {
+    color: var(--ink-header-red);
+}

@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CheatSheetAI — Admin Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f1f5f9;
+            color: #0f172a;
+            min-height: 100vh;
+        }
+
+        /* Login Page */
+        .login-page {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .login-box {
+            background: #fff;
+            border-radius: 16px;
+            padding: 40px;
+            width: 100%;
+            max-width: 380px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .login-box h1 {
+            font-size: 1.4rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .login-box h1 span {
+            color: #5b4cf5;
+        }
+
+        .login-box p {
+            text-align: center;
+            color: #64748b;
+            font-size: 0.85rem;
+            margin-bottom: 24px;
+        }
+
+        .login-field {
+            margin-bottom: 16px;
+        }
+
+        .login-field label {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .login-field input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        .login-field input:focus {
+            outline: none;
+            border-color: #5b4cf5;
+            box-shadow: 0 0 0 3px rgba(91, 76, 245, 0.1);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: #5b4cf5;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 8px;
+        }
+
+        .login-btn:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+
+        .login-error {
+            color: #dc2626;
+            font-size: 0.85rem;
+            text-align: center;
+            margin-top: 12px;
+            display: none;
+        }
+
+        /* Dashboard */
+        .dashboard {
+            display: none;
+        }
+
+        .header {
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.3rem;
+            font-weight: 800;
+        }
+
+        .header h1 span {
+            color: #5b4cf5;
+        }
+
+        .header a {
+            color: #5b4cf5;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 32px auto;
+            padding: 0 24px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .stat-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-card .label {
+            font-size: 0.78rem;
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-top: 4px;
+        }
+
+        .stat-card .value.green {
+            color: #16a34a;
+        }
+
+        .stat-card .value.orange {
+            color: #ea580c;
+        }
+
+        .table-container {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+        }
+
+        .table-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
+
+        td {
+            padding: 12px 16px;
+            font-size: 0.875rem;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+        }
+
+        tr:hover {
+            background: #fafaff;
+        }
+
+        .user-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid #e2e8f0;
+        }
+
+        .user-name {
+            font-weight: 600;
+        }
+
+        .user-email {
+            font-size: 0.78rem;
+            color: #64748b;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge.approved {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .badge.pending {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .action-btn {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .approve-btn {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .approve-btn:hover {
+            background: #bbf7d0;
+        }
+
+        .deny-btn {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .deny-btn:hover {
+            background: #fecaca;
+        }
+
+        .empty-state {
+            padding: 48px;
+            text-align: center;
+            color: #94a3b8;
+        }
+
+        .refresh-btn {
+            background: #5b4cf5;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .refresh-btn:hover {
+            filter: brightness(1.1);
+        }
+
+        .logout-btn {
+            background: #fee2e2;
+            color: #dc2626;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- LOGIN PAGE -->
+    <div class="login-page" id="login-page">
+        <div class="login-box">
+            <h1>📋 <span>CheatSheetAI</span></h1>
+            <p>Admin Dashboard Login</p>
+            <div class="login-field">
+                <label>Username</label>
+                <input type="text" id="login-user" placeholder="Enter username" autocomplete="username">
+            </div>
+            <div class="login-field">
+                <label>Password</label>
+                <input type="password" id="login-pass" placeholder="Enter password" autocomplete="current-password">
+            </div>
+            <button class="login-btn" id="login-btn" onclick="doLogin()">Sign In</button>
+            <div class="login-error" id="login-error">Invalid username or password</div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="dashboard" id="dashboard">
+        <div class="header">
+            <h1>📋 <span>CheatSheetAI</span> — Admin Dashboard</h1>
+            <div style="display:flex; gap:16px; align-items:center;">
+                <button class="refresh-btn" onclick="loadUsers()">🔄 Refresh</button>
+                <button class="logout-btn" onclick="doLogout()">🚪 Logout</button>
+                <a href="/">← Back to App</a>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="label">Total Users</div>
+                    <div class="value" id="stat-total">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Pro Approved</div>
+                    <div class="value green" id="stat-approved">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Free Users</div>
+                    <div class="value orange" id="stat-pending">0</div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="table-header">Registered Users</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Status</th>
+                            <th>AI Sheets</th>
+                            <th>Joined</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-tbody">
+                        <tr>
+                            <td colspan="5" class="empty-state">Loading users...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = '/api';
+        let adminToken = localStorage.getItem('admin_token');
+
+        // Check if already logged in
+        if (adminToken) { showDashboard(); }
+
+        function getHeaders() {
+            return { 'Content-Type': 'application/json', 'x-admin-token': adminToken };
+        }
+
+        async function doLogin() {
+            const user = document.getElementById('login-user').value.trim();
+            const pass = document.getElementById('login-pass').value;
+            const errEl = document.getElementById('login-error');
+            errEl.style.display = 'none';
+
+            if (!user || !pass) { errEl.textContent = 'Please fill in both fields'; errEl.style.display = 'block'; return; }
+
+            try {
+                const res = await fetch(`${API}/admin/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+                const data = await res.json();
+                if (data.success && data.token) {
+                    adminToken = data.token;
+                    localStorage.setItem('admin_token', adminToken);
+                    showDashboard();
+                } else {
+                    errEl.textContent = data.error || 'Invalid credentials';
+                    errEl.style.display = 'block';
+                }
+            } catch (err) {
+                errEl.textContent = 'Connection error: ' + err.message;
+                errEl.style.display = 'block';
+            }
+        }
+
+        function doLogout() {
+            adminToken = null;
+            localStorage.removeItem('admin_token');
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('login-page').style.display = 'flex';
+        }
+
+        function showDashboard() {
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            loadUsers();
+            // Auto-refresh every 15 seconds
+            setInterval(loadUsers, 15000);
+        }
+
+        // Enter key to login
+        document.getElementById('login-pass').addEventListener('keypress', e => { if (e.key === 'Enter') doLogin(); });
+        document.getElementById('login-user').addEventListener('keypress', e => { if (e.key === 'Enter') document.getElementById('login-pass').focus(); });
+
+        async function loadUsers() {
+            try {
+                const res = await fetch(`${API}/admin/users`, { headers: { 'x-admin-token': adminToken } });
+                if (res.status === 401) { doLogout(); return; }
+                const data = await res.json();
+                const users = data.users || [];
+
+                document.getElementById('stat-total').textContent = users.length;
+                document.getElementById('stat-approved').textContent = users.filter(u => u.isApproved).length;
+                document.getElementById('stat-pending').textContent = users.filter(u => !u.isApproved).length;
+
+                const tbody = document.getElementById('users-tbody');
+                if (users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No users yet. Users will appear here after they sign in with Google.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = users.map(u => `
+                    <tr>
+                        <td>
+                            <div class="user-cell">
+                                <img class="user-avatar" src="${u.picture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.name || u.email)}" alt="">
+                                <div>
+                                    <div class="user-name">${escapeHtml(u.name || 'Unknown')}</div>
+                                    <div class="user-email">${escapeHtml(u.email)}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="badge ${u.isApproved ? 'approved' : 'pending'}">${u.isApproved ? '✓ Pro' : '⏳ Free'}</span></td>
+                        <td>${u.generationCount || 0} / ${u.historyCount || 0}</td>
+                        <td>${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</td>
+                        <td>
+                            ${u.isApproved
+                                ? `<button class="action-btn deny-btn" onclick="toggleAccess('${u.email}', false)">Revoke Pro</button>`
+                                : `<button class="action-btn approve-btn" onclick="toggleAccess('${u.email}', true)">✓ Approve Pro</button>`
+                            }
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error('Failed to load users:', err);
+            }
+        }
+
+        async function toggleAccess(email, approve) {
+            try {
+                const endpoint = approve ? '/api/admin/approve' : '/api/admin/deny';
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ email })
+                });
+                if (res.status === 401) { doLogout(); return; }
+                loadUsers();
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        }
+
+        function escapeHtml(str) {
+            return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+    </script>
+</body>
+
+</html>

@@ -241,7 +241,7 @@ function getCleanEnv() {
 function runGeminiCLI(prompt) {
     return new Promise((resolve, reject) => {
         const env = getCleanEnv();
-        const child = spawn('gemini', ['-p', prompt, '--yolo'], { env, timeout: 120000 });
+        const child = spawn('gemini', ['-p', prompt, '--yolo'], { env, timeout: 120000, shell: true });
         let output = '', errorOutput = '';
         child.stdout.on('data', (d) => { output += d.toString(); });
         child.stderr.on('data', (d) => { errorOutput += d.toString(); });
@@ -277,7 +277,13 @@ async function runGeminiAPI(prompt) {
 }
 
 async function runGemini(prompt) {
-    // Use API if key is available (Vercel), otherwise fall back to CLI (local)
+    if (process.env.VERCEL) {
+        if (!process.env.GEMINI_API_KEY) {
+            throw new Error("🚨 Vercel Error: GEMINI_API_KEY is not set! Please go to your Vercel Dashboard -> Settings -> Environment Variables, add GEMINI_API_KEY, and redeploy.");
+        }
+        return runGeminiAPI(prompt);
+    }
+
     if (process.env.GEMINI_API_KEY) {
         return runGeminiAPI(prompt);
     }

@@ -191,17 +191,6 @@ app.post('/api/admin/deny', adminAuth, (req, res) => {
 // ============================================================
 // FILE EXTRACTION
 // ============================================================
-// TEMP DEBUG ENDPOINT
-app.get('/api/debug-env', (req, res) => {
-    res.json({
-        hasVercel: !!process.env.VERCEL,
-        vercelEnv: process.env.VERCEL_ENV,
-        hasGeminiKey: !!process.env.GEMINI_API_KEY,
-        geminiKeyLength: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.length : 0,
-        nodeEnv: process.env.NODE_ENV
-    });
-});
-
 app.post('/api/extract/url', async (req, res) => {
     try {
         const { url } = req.body;

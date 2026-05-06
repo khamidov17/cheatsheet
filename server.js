@@ -12,7 +12,6 @@ const { kv } = require('@vercel/kv'); // Vercel KV Database
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MAX_AI_SHEETS = 5;
 
 // Admin credentials (can override via env vars on Vercel)
 const ADMIN_USER = process.env.ADMIN_USER || 'admin123';
@@ -156,7 +155,7 @@ app.post('/api/auth/google', async (req, res) => {
     if (!u) {
         u = {
             email: user.email, name: user.name, picture: user.picture,
-            isApproved: false, generationCount: 0, history: [], createdAt: Date.now()
+            generationCount: 0, history: [], createdAt: Date.now()
         };
     } else {
         u.name = user.name;
@@ -168,9 +167,7 @@ app.post('/api/auth/google', async (req, res) => {
         success: true,
         user: {
             email: u.email, name: u.name, picture: u.picture,
-            isApproved: u.isApproved,
-            generationCount: u.generationCount || 0,
-            maxGenerations: MAX_AI_SHEETS
+            generationCount: u.generationCount || 0
         }
     });
 });
@@ -182,9 +179,7 @@ app.get('/api/user/:email', async (req, res) => {
     res.json({
         user: {
             email: u.email, name: u.name, picture: u.picture,
-            isApproved: u.isApproved,
-            generationCount: u.generationCount || 0,
-            maxGenerations: MAX_AI_SHEETS
+            generationCount: u.generationCount || 0
         },
         history: u.history || []
     });
@@ -222,7 +217,6 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
         
         const users = Object.values(dictUsers || {}).map(u => ({
             email: u.email, name: u.name, picture: u.picture,
-            isApproved: u.isApproved,
             generationCount: u.generationCount || 0,
             historyCount: (u.history || []).length,
             createdAt: u.createdAt
@@ -242,25 +236,6 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
     }
 });
 
-app.post('/api/admin/approve', adminAuth, async (req, res) => {
-    const { email } = req.body;
-    if (!email) return res.status(404).json({ error: 'User not found' });
-    const u = await getUser(email);
-    if (!u) return res.status(404).json({ error: 'User not found' });
-    u.isApproved = true;
-    await saveUser(email, u);
-    res.json({ success: true });
-});
-
-app.post('/api/admin/deny', adminAuth, async (req, res) => {
-    const { email } = req.body;
-    if (!email) return res.status(404).json({ error: 'User not found' });
-    const u = await getUser(email);
-    if (!u) return res.status(404).json({ error: 'User not found' });
-    u.isApproved = false;
-    await saveUser(email, u);
-    res.json({ success: true });
-});
 
 // ============================================================
 // FILE EXTRACTION

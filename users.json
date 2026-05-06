@@ -1,0 +1,31 @@
+{
+  "users": {},
+  "devices": {
+    "dev-BylY-4K1x-Mc8x": {
+      "history": [
+        {
+          "id": "doc_1778059427881",
+          "title": "My Blank Cheatsheet",
+          "data": [
+            {
+              "title": "Section 1",
+              "body": "<ul><li>Start writing Testing history saving feature...your notes here...</li></ul>"
+            },
+            {
+              "title": "Section 2",
+              "body": "<ul><li>Add more content...</li></ul>"
+            },
+            {
+              "title": "Section 3",
+              "body": "<ul><li>Keep adding...</li></ul>"
+            }
+          ],
+          "updatedAt": 1778059430784,
+          "isAI": false
+        }
+      ],
+      "count": 0,
+      "createdAt": 1778059427897
+    }
+  }
+}

@@ -61,7 +61,7 @@ async function getUser(email) {
 }
 async function saveUser(email, data) {
     if (USE_KV) await kv.hset('users', { [email]: data });
-    else { localDb.users[email] = data; saveLocalDb(); }
+    else { localDb.users[email] = JSON.parse(JSON.stringify(data)); saveLocalDb(); }
 }
 async function getAllUsers() {
     if (USE_KV) return (await kv.hgetall('users')) || {};
@@ -74,7 +74,7 @@ async function getDevice(id) {
 }
 async function saveDevice(id, data) {
     if (USE_KV) await kv.hset('devices', { [id]: data });
-    else { localDb.devices[id] = data; saveLocalDb(); }
+    else { localDb.devices[id] = JSON.parse(JSON.stringify(data)); saveLocalDb(); }
 }
 async function getAllDevices() {
     if (USE_KV) return (await kv.hgetall('devices')) || {};
@@ -116,8 +116,11 @@ app.get('/api/device/:deviceId', async (req, res) => {
 
 app.post('/api/device/:deviceId/history', async (req, res) => {
     const { deviceId } = req.params;
+    const history = req.body;
+    if (!Array.isArray(history)) return res.status(400).json({ error: 'History must be an array' });
+
     let device = await getDevice(deviceId) || { history: [], count: 0, createdAt: Date.now() };
-    device.history = req.body;
+    device.history = history;
     await saveDevice(deviceId, device);
     res.json({ success: true });
 });
@@ -189,9 +192,13 @@ app.get('/api/user/:email', async (req, res) => {
 
 app.post('/api/user/:email/history', async (req, res) => {
     const email = decodeURIComponent(req.params.email);
-    const u = await getUser(email);
+    const history = req.body;
+    if (!Array.isArray(history)) return res.status(400).json({ error: 'History must be an array' });
+
+    let u = await getUser(email);
     if (!u) return res.status(404).json({ error: 'User not found' });
-    u.history = req.body;
+
+    u.history = history;
     await saveUser(email, u);
     res.json({ success: true });
 });
@@ -310,7 +317,7 @@ function getCleanEnv() {
 function runGeminiCLI(prompt) {
     return new Promise((resolve, reject) => {
         const env = getCleanEnv();
-        const child = spawn('gemini', ['-p', prompt, '--yolo'], { env, timeout: 120000, shell: true });
+        const child = spawn('gemini', ['-p', prompt, '--yolo'], { env, timeout: 120000, shell: false });
         let output = '', errorOutput = '';
         child.stdout.on('data', (d) => { output += d.toString(); });
         child.stderr.on('data', (d) => { errorOutput += d.toString(); });
@@ -443,6 +450,10 @@ app.get('/api/info', (req, res) => {
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
     res.json({ ip, port: PORT });
 });
+
+if (process.env.VERCEL && !process.env.KV_URL) {
+    console.warn('⚠️ VERCEL environment detected but KV_URL is missing. User data will NOT persist between restarts!');
+}
 
 // Only listen when not running as Vercel serverless
 if (!process.env.VERCEL) {

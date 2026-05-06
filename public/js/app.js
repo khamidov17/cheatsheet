@@ -47,6 +47,14 @@ window.showToast = function (msg) {
 
 function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
+function debounce(fn, ms) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn.apply(this, args), ms);
+    };
+}
+
 // ============================================================
 // WATERMARK
 // ============================================================
@@ -277,22 +285,26 @@ async function refreshUserState(email) {
             localStorage.setItem('cheatsheet_google_user', JSON.stringify(window.appState.user));
             setSignedInUser(window.appState.user);
         }
-        if (data.history && data.history.length > 0) window.appState.history = data.history;
+        // BUG FIX: sync history even if it's empty
+        if (data.history) window.appState.history = data.history;
         renderHistory();
-    } catch (e) { }
+    } catch (e) { console.error('Refresh user state failed:', e); }
 }
 
-async function saveHistory() {
+async function saveHistoryImmediate() {
+    const historyData = window.appState.history;
     if (window.appState.user && window.appState.user.email) {
         try {
             await fetch(`${API}/user/${encodeURIComponent(window.appState.user.email)}/history`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(window.appState.history)
+                body: JSON.stringify(historyData)
             });
-        } catch (e) { }
+        } catch (e) { console.error('Save user history failed:', e); }
     }
     await saveDeviceHistory();
 }
+
+const saveHistory = debounce(saveHistoryImmediate, 1000);
 
 async function mergeDeviceHistoryToUser(email) {
     try {
@@ -306,7 +318,7 @@ async function mergeDeviceHistoryToUser(email) {
         const merged = [...userHist];
         for (const d of devHist) { if (!ids.has(d.id)) merged.push(d); }
         window.appState.history = merged;
-        await saveHistory();
+        await saveHistoryImmediate();
         if (data.user) { window.appState.user = { ...window.appState.user, ...data.user }; setSignedInUser(window.appState.user); }
         renderHistory();
     } catch (e) { }
@@ -317,7 +329,12 @@ window.syncStateToBackend = saveHistory;
 function saveCurrentDocument() {
     if (!window.appState.currentDocId) return;
     const doc = window.appState.history.find(d => d.id === window.appState.currentDocId);
-    if (doc) { doc.data = window.appState.canvasData; doc.updatedAt = Date.now(); saveHistory(); renderHistory(); }
+    if (doc) {
+        doc.data = [...window.appState.canvasData];
+        doc.updatedAt = Date.now();
+        saveHistory();
+        renderHistory();
+    }
 }
 
 // ============================================================
@@ -557,7 +574,7 @@ Do NOT wrap in \`\`\`json. Output the raw array only.`;
         window.appState.history.push(newDoc);
         window.appState.currentDocIsAI = true;
         openDocument(docId);
-        saveHistory();
+        await saveHistoryImmediate();
 
         // Increment count on server
         if (window.appState.user && window.appState.user.email) {
@@ -606,7 +623,7 @@ function createBlankCheatsheet() {
     window.appState.history.push(newDoc);
     window.appState.currentDocIsAI = false;
     openDocument(docId);
-    saveHistory();
+    saveHistoryImmediate();
     window.showToast('Blank cheatsheet created! Start typing.');
 }
 

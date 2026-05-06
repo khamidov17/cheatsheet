@@ -178,14 +178,6 @@
             margin-top: 4px;
         }
 
-        .stat-card .value.green {
-            color: #16a34a;
-        }
-
-        .stat-card .value.orange {
-            color: #ea580c;
-        }
-
         .table-container {
             background: #fff;
             border-radius: 12px;
@@ -251,24 +243,6 @@
             color: #64748b;
         }
 
-        .badge {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .badge.approved {
-            background: #dcfce7;
-            color: #16a34a;
-        }
-
-        .badge.pending {
-            background: #fef3c7;
-            color: #d97706;
-        }
-
         .action-btn {
             padding: 6px 14px;
             border: none;
@@ -277,24 +251,6 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.15s;
-        }
-
-        .approve-btn {
-            background: #dcfce7;
-            color: #16a34a;
-        }
-
-        .approve-btn:hover {
-            background: #bbf7d0;
-        }
-
-        .deny-btn {
-            background: #fee2e2;
-            color: #dc2626;
-        }
-
-        .deny-btn:hover {
-            background: #fecaca;
         }
 
         .empty-state {
@@ -373,14 +329,6 @@
                     <div class="value" id="stat-total">0</div>
                 </div>
                 <div class="stat-card">
-                    <div class="label">Pro Approved</div>
-                    <div class="value green" id="stat-approved">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="label">Free Users</div>
-                    <div class="value orange" id="stat-pending">0</div>
-                </div>
-                <div class="stat-card">
                     <div class="label">Anon Devices</div>
                     <div class="value" style="color: #6366f1;" id="stat-devices">0</div>
                 </div>
@@ -392,10 +340,8 @@
                     <thead>
                         <tr>
                             <th>User</th>
-                            <th>Status</th>
                             <th>AI Sheets</th>
                             <th>Joined</th>
-                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="users-tbody">
@@ -495,13 +441,11 @@
                 const devices = data.devices || [];
 
                 document.getElementById('stat-total').textContent = users.length;
-                document.getElementById('stat-approved').textContent = users.filter(u => u.isApproved).length;
-                document.getElementById('stat-pending').textContent = users.filter(u => !u.isApproved).length;
                 document.getElementById('stat-devices').textContent = devices.length;
 
                 const tbody = document.getElementById('users-tbody');
                 if (users.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No users yet. Users will appear here after they sign in with Google.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="3" class="empty-state">No users yet. Users will appear here after they sign in with Google.</td></tr>';
                     return;
                 }
 
@@ -516,15 +460,8 @@
                                 </div>
                             </div>
                         </td>
-                        <td><span class="badge ${u.isApproved ? 'approved' : 'pending'}">${u.isApproved ? '✓ Pro' : '⏳ Free'}</span></td>
                         <td>${u.generationCount || 0} / ${u.historyCount || 0}</td>
                         <td>${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</td>
-                        <td>
-                            ${u.isApproved
-                        ? `<button class="action-btn deny-btn" onclick="toggleAccess('${u.email}', false)">Revoke Pro</button>`
-                        : `<button class="action-btn approve-btn" onclick="toggleAccess('${u.email}', true)">✓ Approve Pro</button>`
-                    }
-                        </td>
                     </tr>
                 `).join('');
 
@@ -546,20 +483,6 @@
             }
         }
 
-        async function toggleAccess(email, approve) {
-            try {
-                const endpoint = approve ? '/api/admin/approve' : '/api/admin/deny';
-                const res = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: getHeaders(),
-                    body: JSON.stringify({ email })
-                });
-                if (res.status === 401) { doLogout(); return; }
-                loadUsers();
-            } catch (err) {
-                alert('Error: ' + err.message);
-            }
-        }
 
         function escapeHtml(str) {
             return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

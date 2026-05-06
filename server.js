@@ -12,7 +12,6 @@ const { kv } = require('@vercel/kv'); // Vercel KV Database
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MAX_AI_SHEETS = 5;
 
 // Admin credentials (can override via env vars on Vercel)
 const ADMIN_USER = process.env.ADMIN_USER || 'admin123';
@@ -61,7 +60,7 @@ async function getUser(email) {
 }
 async function saveUser(email, data) {
     if (USE_KV) await kv.hset('users', { [email]: data });
-    else { localDb.users[email] = data; saveLocalDb(); }
+    else { localDb.users[email] = JSON.parse(JSON.stringify(data)); saveLocalDb(); }
 }
 async function getAllUsers() {
     if (USE_KV) return (await kv.hgetall('users')) || {};
@@ -74,7 +73,7 @@ async function getDevice(id) {
 }
 async function saveDevice(id, data) {
     if (USE_KV) await kv.hset('devices', { [id]: data });
-    else { localDb.devices[id] = data; saveLocalDb(); }
+    else { localDb.devices[id] = JSON.parse(JSON.stringify(data)); saveLocalDb(); }
 }
 async function getAllDevices() {
     if (USE_KV) return (await kv.hgetall('devices')) || {};
@@ -116,8 +115,11 @@ app.get('/api/device/:deviceId', async (req, res) => {
 
 app.post('/api/device/:deviceId/history', async (req, res) => {
     const { deviceId } = req.params;
+    const history = req.body;
+    if (!Array.isArray(history)) return res.status(400).json({ error: 'History must be an array' });
+
     let device = await getDevice(deviceId) || { history: [], count: 0, createdAt: Date.now() };
-    device.history = req.body;
+    device.history = history;
     await saveDevice(deviceId, device);
     res.json({ success: true });
 });
@@ -153,7 +155,7 @@ app.post('/api/auth/google', async (req, res) => {
     if (!u) {
         u = {
             email: user.email, name: user.name, picture: user.picture,
-            isApproved: false, generationCount: 0, history: [], createdAt: Date.now()
+            generationCount: 0, history: [], createdAt: Date.now()
         };
     } else {
         u.name = user.name;
@@ -165,9 +167,7 @@ app.post('/api/auth/google', async (req, res) => {
         success: true,
         user: {
             email: u.email, name: u.name, picture: u.picture,
-            isApproved: u.isApproved,
-            generationCount: u.generationCount || 0,
-            maxGenerations: MAX_AI_SHEETS
+            generationCount: u.generationCount || 0
         }
     });
 });
@@ -179,9 +179,7 @@ app.get('/api/user/:email', async (req, res) => {
     res.json({
         user: {
             email: u.email, name: u.name, picture: u.picture,
-            isApproved: u.isApproved,
-            generationCount: u.generationCount || 0,
-            maxGenerations: MAX_AI_SHEETS
+            generationCount: u.generationCount || 0
         },
         history: u.history || []
     });
@@ -189,9 +187,13 @@ app.get('/api/user/:email', async (req, res) => {
 
 app.post('/api/user/:email/history', async (req, res) => {
     const email = decodeURIComponent(req.params.email);
-    const u = await getUser(email);
+    const history = req.body;
+    if (!Array.isArray(history)) return res.status(400).json({ error: 'History must be an array' });
+
+    let u = await getUser(email);
     if (!u) return res.status(404).json({ error: 'User not found' });
-    u.history = req.body;
+
+    u.history = history;
     await saveUser(email, u);
     res.json({ success: true });
 });
@@ -215,7 +217,6 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
         
         const users = Object.values(dictUsers || {}).map(u => ({
             email: u.email, name: u.name, picture: u.picture,
-            isApproved: u.isApproved,
             generationCount: u.generationCount || 0,
             historyCount: (u.history || []).length,
             createdAt: u.createdAt
@@ -235,25 +236,6 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
     }
 });
 
-app.post('/api/admin/approve', adminAuth, async (req, res) => {
-    const { email } = req.body;
-    if (!email) return res.status(404).json({ error: 'User not found' });
-    const u = await getUser(email);
-    if (!u) return res.status(404).json({ error: 'User not found' });
-    u.isApproved = true;
-    await saveUser(email, u);
-    res.json({ success: true });
-});
-
-app.post('/api/admin/deny', adminAuth, async (req, res) => {
-    const { email } = req.body;
-    if (!email) return res.status(404).json({ error: 'User not found' });
-    const u = await getUser(email);
-    if (!u) return res.status(404).json({ error: 'User not found' });
-    u.isApproved = false;
-    await saveUser(email, u);
-    res.json({ success: true });
-});
 
 // ============================================================
 // FILE EXTRACTION
@@ -310,7 +292,7 @@ function getCleanEnv() {
 function runGeminiCLI(prompt) {
     return new Promise((resolve, reject) => {
         const env = getCleanEnv();
-        const child = spawn('gemini', ['-p', prompt, '--yolo'], { env, timeout: 120000, shell: true });
+        const child = spawn('gemini', ['-p', prompt, '--yolo'], { env, timeout: 120000, shell: false });
         let output = '', errorOutput = '';
         child.stdout.on('data', (d) => { output += d.toString(); });
         child.stderr.on('data', (d) => { errorOutput += d.toString(); });
@@ -443,6 +425,10 @@ app.get('/api/info', (req, res) => {
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
     res.json({ ip, port: PORT });
 });
+
+if (process.env.VERCEL && !process.env.KV_URL) {
+    console.warn('⚠️ VERCEL environment detected but KV_URL is missing. User data will NOT persist between restarts!');
+}
 
 // Only listen when not running as Vercel serverless
 if (!process.env.VERCEL) {

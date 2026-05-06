@@ -19,171 +19,6 @@
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
-        /* Payment Modal */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-            backdrop-filter: blur(4px);
-        }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        .modal-box {
-            background: #fff;
-            border-radius: 16px;
-            max-width: 580px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-            padding: 32px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            position: relative;
-        }
-
-        .modal-close {
-            position: absolute;
-            top: 12px;
-            right: 16px;
-            background: none;
-            border: none;
-            font-size: 1.4rem;
-            cursor: pointer;
-            color: #94a3b8;
-        }
-
-        .modal-close:hover {
-            color: #0f172a;
-        }
-
-        .modal-title {
-            font-size: 1.4rem;
-            font-weight: 800;
-            margin-bottom: 6px;
-            color: #0f172a;
-        }
-
-        .modal-subtitle {
-            font-size: 0.9rem;
-            color: #64748b;
-            margin-bottom: 20px;
-        }
-
-        .modal-steps {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .modal-step {
-            display: flex;
-            gap: 16px;
-            align-items: flex-start;
-            background: #f8fafc;
-            border-radius: 12px;
-            padding: 16px;
-            border: 1px solid #e2e8f0;
-        }
-
-        .step-num {
-            width: 28px;
-            height: 28px;
-            min-width: 28px;
-            background: #5b4cf5;
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 0.85rem;
-        }
-
-        .step-body h4 {
-            font-size: 0.95rem;
-            margin-bottom: 4px;
-        }
-
-        .step-body p {
-            font-size: 0.82rem;
-            color: #64748b;
-        }
-
-        .qr-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-top: 12px;
-        }
-
-        .qr-card {
-            text-align: center;
-            background: #fff;
-            border-radius: 10px;
-            padding: 12px;
-            border: 1px solid #e2e8f0;
-        }
-
-        .qr-card img {
-            width: 100%;
-            max-width: 200px;
-            border-radius: 8px;
-        }
-
-        .qr-card .qr-label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: #64748b;
-            margin-top: 6px;
-        }
-
-        .modal-footer {
-            margin-top: 20px;
-            text-align: center;
-            font-size: 0.82rem;
-            color: #94a3b8;
-        }
-
-        .modal-btn {
-            display: block;
-            width: 100%;
-            margin-top: 16px;
-            padding: 12px;
-            background: #5b4cf5;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        .modal-btn:hover {
-            filter: brightness(1.1);
-        }
-
-        /* Pro badge */
-        .pro-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            background: linear-gradient(135deg, #f59e0b, #ef4444);
-            color: white;
-            font-size: 0.65rem;
-            font-weight: 700;
-            border-radius: 10px;
-            margin-left: 6px;
-            vertical-align: middle;
-        }
-
         /* Generation counter */
         .gen-counter {
             font-size: 0.75rem;
@@ -225,38 +60,6 @@
             background: #f1f5f9;
         }
 
-        /* Upgrade to Pro button in editor toolbar */
-        .upgrade-btn {
-            background: linear-gradient(135deg, #f59e0b, #ef4444);
-            color: white;
-            border: none;
-            padding: 6px 16px;
-            border-radius: 8px;
-            font-size: 0.78rem;
-            font-weight: 700;
-            cursor: pointer;
-            margin-left: 12px;
-            transition: all 0.2s;
-            white-space: nowrap;
-            animation: pulse-glow 2s infinite;
-        }
-
-        .upgrade-btn:hover {
-            filter: brightness(1.1);
-            transform: scale(1.05);
-        }
-
-        @keyframes pulse-glow {
-
-            0%,
-            100% {
-                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
-            }
-
-            50% {
-                box-shadow: 0 0 15px 3px rgba(245, 158, 11, 0.25);
-            }
-        }
     </style>
     <!-- Vercel Web Analytics -->
     <script>
@@ -266,45 +69,6 @@
 </head>
 
 <body class="theme-bright">
-
-    <!-- UPGRADE MODAL -->
-    <div class="modal-overlay" id="payment-modal">
-        <div class="modal-box">
-            <button class="modal-close" id="modal-close">✕</button>
-            <div class="modal-title">🚀 Upgrade to Pro</div>
-            <div class="modal-subtitle">Remove watermarks & export PDF — up to 5 AI-generated cheatsheets.</div>
-
-            <div class="modal-steps">
-                <div class="modal-step">
-                    <div class="step-num">1</div>
-                    <div class="step-body">
-                        <h4>Add Avazbek on WeChat & Send ¥9</h4>
-                        <p>Scan the QR code below to add Avazbek on WeChat. Then send <strong>¥9 RMB</strong> and
-                            include your <strong>Google email</strong> in the message for activation.</p>
-                        <div style="text-align:center; margin-top: 12px;">
-                            <div class="qr-card" style="display:inline-block; max-width:220px;">
-                                <img src="images/wechat_contact.jpg" alt="Add WeChat"
-                                    style="width:100%; max-width:200px; border-radius:8px;">
-                                <div class="qr-label">💬 Add Avazbek on WeChat</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="modal-step">
-                    <div class="step-num">2</div>
-                    <div class="step-body">
-                        <h4>Get Approved</h4>
-                        <p>Once payment is confirmed, your account will be activated within minutes. Watermarks will be
-                            removed and PDF export unlocked!</p>
-                    </div>
-                </div>
-            </div>
-
-            <button class="modal-btn" id="modal-close-btn">Got it!</button>
-            <div class="modal-footer">Send ¥9 + your Google email via WeChat to activate Pro.</div>
-        </div>
-    </div>
 
     <!-- LANDING VIEW -->
     <div id="landing-view" class="view-active">
@@ -323,7 +87,6 @@
                 <div id="user-profile" style="display:none;" class="user-profile-bar">
                     <img id="user-avatar" src="" alt="">
                     <span id="user-name-display"></span>
-                    <span id="user-approval-badge"></span>
                     <button class="sign-out-btn" id="sign-out-btn">Sign Out</button>
                 </div>
             </div>
@@ -453,7 +216,6 @@
                     </svg>
                 </div>
                 <h2 id="editor-topic-title">Cheat Sheet</h2>
-                <button id="upgrade-btn" class="upgrade-btn">⚡ Upgrade to Pro</button>
             </div>
 
             <div class="toolbar-center">

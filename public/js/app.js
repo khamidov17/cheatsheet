@@ -47,6 +47,14 @@ window.showToast = function (msg) {
 
 function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
+function debounce(fn, delay) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
+
 // ============================================================
 // WATERMARK
 // ============================================================
@@ -282,6 +290,8 @@ async function refreshUserState(email) {
     } catch (e) { }
 }
 
+const debouncedSaveHistory = debounce(() => saveHistory(), 1000);
+
 async function saveHistory() {
     if (window.appState.user && window.appState.user.email) {
         try {
@@ -314,10 +324,26 @@ async function mergeDeviceHistoryToUser(email) {
 
 window.syncStateToBackend = saveHistory;
 
+function saveCurrentDocumentImmediate() {
+    if (!window.appState.currentDocId) return;
+    const doc = window.appState.history.find(d => d.id === window.appState.currentDocId);
+    if (doc) {
+        doc.data = window.appState.canvasData;
+        doc.updatedAt = Date.now();
+        saveHistory();
+        renderHistory();
+    }
+}
+
 function saveCurrentDocument() {
     if (!window.appState.currentDocId) return;
     const doc = window.appState.history.find(d => d.id === window.appState.currentDocId);
-    if (doc) { doc.data = window.appState.canvasData; doc.updatedAt = Date.now(); saveHistory(); renderHistory(); }
+    if (doc) {
+        doc.data = window.appState.canvasData;
+        doc.updatedAt = Date.now();
+        debouncedSaveHistory();
+        renderHistory();
+    }
 }
 
 // ============================================================
@@ -398,15 +424,15 @@ function renderCanvasNodes() {
 
         const up = document.createElement('button');
         up.className = 'move-btn'; up.innerHTML = '▲';
-        up.onclick = e => { e.stopPropagation(); if (idx > 0) { [window.appState.canvasData[idx], window.appState.canvasData[idx - 1]] = [window.appState.canvasData[idx - 1], window.appState.canvasData[idx]]; saveCurrentDocument(); renderCanvasNodes(); updateWatermark(); } };
+        up.onclick = e => { e.stopPropagation(); if (idx > 0) { [window.appState.canvasData[idx], window.appState.canvasData[idx - 1]] = [window.appState.canvasData[idx - 1], window.appState.canvasData[idx]]; saveCurrentDocumentImmediate(); renderCanvasNodes(); updateWatermark(); } };
 
         const down = document.createElement('button');
         down.className = 'move-btn'; down.innerHTML = '▼';
-        down.onclick = e => { e.stopPropagation(); if (idx < window.appState.canvasData.length - 1) { [window.appState.canvasData[idx], window.appState.canvasData[idx + 1]] = [window.appState.canvasData[idx + 1], window.appState.canvasData[idx]]; saveCurrentDocument(); renderCanvasNodes(); updateWatermark(); } };
+        down.onclick = e => { e.stopPropagation(); if (idx < window.appState.canvasData.length - 1) { [window.appState.canvasData[idx], window.appState.canvasData[idx + 1]] = [window.appState.canvasData[idx + 1], window.appState.canvasData[idx]]; saveCurrentDocumentImmediate(); renderCanvasNodes(); updateWatermark(); } };
 
         const del = document.createElement('button');
         del.className = 'move-btn delete-btn'; del.innerHTML = '✕';
-        del.onclick = e => { e.stopPropagation(); window.appState.canvasData.splice(idx, 1); saveCurrentDocument(); renderCanvasNodes(); updateWatermark(); };
+        del.onclick = e => { e.stopPropagation(); window.appState.canvasData.splice(idx, 1); saveCurrentDocumentImmediate(); renderCanvasNodes(); updateWatermark(); };
 
         ctrls.appendChild(handle); ctrls.appendChild(up); ctrls.appendChild(down); ctrls.appendChild(del);
 
@@ -431,7 +457,7 @@ function renderCanvasNodes() {
             e.stopPropagation(); e.preventDefault(); this.style.outline = 'none';
             const si = parseInt(e.dataTransfer.getData('text/plain'));
             const ti = parseInt(this.getAttribute('data-idx'));
-            if (si !== ti) { [window.appState.canvasData[si], window.appState.canvasData[ti]] = [window.appState.canvasData[ti], window.appState.canvasData[si]]; saveCurrentDocument(); renderCanvasNodes(); updateWatermark(); }
+            if (si !== ti) { [window.appState.canvasData[si], window.appState.canvasData[ti]] = [window.appState.canvasData[ti], window.appState.canvasData[si]]; saveCurrentDocumentImmediate(); renderCanvasNodes(); updateWatermark(); }
         });
 
         w.appendChild(ctrls); w.appendChild(content);
@@ -442,7 +468,7 @@ function renderCanvasNodes() {
     const addBtn = document.createElement('button');
     addBtn.className = 'add-note-btn'; addBtn.id = 'add-note-btn';
     addBtn.innerHTML = '+ Add Blank Note';
-    addBtn.onclick = () => { window.appState.canvasData.push({ title: "My Notes", body: "<ul><li>Write here...</li></ul>" }); saveCurrentDocument(); renderCanvasNodes(); updateWatermark(); };
+    addBtn.onclick = () => { window.appState.canvasData.push({ title: "My Notes", body: "<ul><li>Write here...</li></ul>" }); saveCurrentDocumentImmediate(); renderCanvasNodes(); updateWatermark(); };
     canvas.appendChild(addBtn);
     applyTypography();
 }
@@ -695,7 +721,7 @@ async function handleSendChat() {
             try {
                 const sections = JSON.parse(result.substring(js, je + 1));
                 if (Array.isArray(sections) && sections.length > 0 && sections[0].title) {
-                    window.appState.canvasData = sections; renderCanvasNodes(); saveCurrentDocument(); updateWatermark();
+                    window.appState.canvasData = sections; renderCanvasNodes(); saveCurrentDocumentImmediate(); updateWatermark();
                     appendChat('ai', '✅ Cheatsheet updated!'); clearPendingFiles(); return;
                 }
             } catch (e) { }
@@ -755,7 +781,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Upgrade to Pro
     document.getElementById('upgrade-btn').addEventListener('click', showPaymentModal);
     // Back
-    document.getElementById('back-btn').addEventListener('click', () => { saveCurrentDocument(); toggleChat(false); switchToLanding(); });
+    document.getElementById('back-btn').addEventListener('click', () => { saveCurrentDocumentImmediate(); toggleChat(false); switchToLanding(); });
 
     // Toolbar — cols
     const mainCanvas = document.getElementById('main-canvas');

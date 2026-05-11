@@ -1,0 +1,3 @@
+## 2025-05-14 - Debounced document persistence
+**Learning:** High-frequency events like typing in a contentEditable div were triggering immediate backend API calls and full DOM re-renders of the history grid. This caused noticeable lag and wasted server resources. Debouncing these calls by 1000ms significantly improves perceived performance without compromising data integrity, provided that critical actions (navigation, deletions) and page exits (beforeunload) still trigger immediate saves.
+**Action:** Always prefer debounced persistence for text input fields. Ensure that a 'beforeunload' listener is present to flush pending changes.

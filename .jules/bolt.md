@@ -1,0 +1,3 @@
+## 2026-05-12 - Debounced History Persistence
+**Learning:** Frequent API calls and DOM re-renders during active typing were causing measurable overhead. Implementing a `debounce` mechanism with a `.flush()` method ensures performance without sacrificing data integrity. Skipping unnecessary DOM manipulation (like `renderHistory()`) during the debounced save path further reduces main-thread blocking.
+**Action:** Always include a `beforeunload` listener and a `flush` mechanism when debouncing critical data persistence to prevent data loss on navigation. Use the `immediate` flag strategy to distinguish between background auto-saves and critical state transitions.

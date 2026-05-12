@@ -47,6 +47,38 @@ window.showToast = function (msg) {
 
 function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
+/**
+ * Debounce function to throttle frequent calls
+ * @param {Function} fn - Function to debounce
+ * @param {number} delay - Delay in ms
+ * @returns {Function} - Debounced function with .flush() method
+ */
+function debounce(fn, delay) {
+    let timeout;
+    let lastArgs;
+    let lastContext;
+
+    const debounced = function (...args) {
+        lastArgs = args;
+        lastContext = this;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            fn.apply(lastContext, lastArgs);
+            timeout = null;
+        }, delay);
+    };
+
+    debounced.flush = () => {
+        if (timeout) {
+            clearTimeout(timeout);
+            fn.apply(lastContext, lastArgs);
+            timeout = null;
+        }
+    };
+
+    return debounced;
+}
+
 // ============================================================
 // WATERMARK
 // ============================================================
@@ -294,6 +326,8 @@ async function saveHistory() {
     await saveDeviceHistory();
 }
 
+const debouncedSaveHistory = debounce(saveHistory, 1000);
+
 async function mergeDeviceHistoryToUser(email) {
     try {
         const res = await fetch(`${API}/user/${encodeURIComponent(email)}`);
@@ -314,10 +348,25 @@ async function mergeDeviceHistoryToUser(email) {
 
 window.syncStateToBackend = saveHistory;
 
-function saveCurrentDocument() {
+/**
+ * Persists the current document state to history and syncs to backend.
+ * @param {boolean} [immediate=true] - If false, uses debounced saving for better performance.
+ */
+function saveCurrentDocument(immediate = true) {
     if (!window.appState.currentDocId) return;
     const doc = window.appState.history.find(d => d.id === window.appState.currentDocId);
-    if (doc) { doc.data = window.appState.canvasData; doc.updatedAt = Date.now(); saveHistory(); renderHistory(); }
+    if (doc) {
+        doc.data = window.appState.canvasData;
+        doc.updatedAt = Date.now();
+        if (immediate) {
+            debouncedSaveHistory.flush(); // Flush any pending debounced saves first
+            saveHistory();
+            renderHistory();
+        } else {
+            debouncedSaveHistory();
+            // We skip renderHistory() for debounced saves to avoid DOM overhead during typing
+        }
+    }
 }
 
 // ============================================================
@@ -419,7 +468,7 @@ function renderCanvasNodes() {
             section.title = h ? h.textContent : 'Section';
             const cl = content.cloneNode(true); const ch = cl.querySelector('h4'); if (ch) ch.remove();
             section.body = cl.innerHTML;
-            saveCurrentDocument();
+            saveCurrentDocument(false); // Debounce saves during typing
         });
 
         handle.addEventListener('dragstart', e => { w.style.opacity = '0.4'; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', idx); });
@@ -755,7 +804,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Upgrade to Pro
     document.getElementById('upgrade-btn').addEventListener('click', showPaymentModal);
     // Back
-    document.getElementById('back-btn').addEventListener('click', () => { saveCurrentDocument(); toggleChat(false); switchToLanding(); });
+    document.getElementById('back-btn').addEventListener('click', () => { saveCurrentDocument(true); toggleChat(false); switchToLanding(); });
 
     // Toolbar — cols
     const mainCanvas = document.getElementById('main-canvas');
@@ -786,4 +835,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // PDF export
     document.getElementById('export-pdf-btn').addEventListener('click', exportPdf);
+
+    // Flush any pending debounced saves before leaving the page
+    window.addEventListener('beforeunload', () => {
+        if (typeof debouncedSaveHistory !== 'undefined') {
+            debouncedSaveHistory.flush();
+        }
+    });
 });

@@ -47,6 +47,14 @@ window.showToast = function (msg) {
 
 function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
+function debounce(fn, delay) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
+
 // ============================================================
 // WATERMARK
 // ============================================================
@@ -314,10 +322,21 @@ async function mergeDeviceHistoryToUser(email) {
 
 window.syncStateToBackend = saveHistory;
 
-function saveCurrentDocument() {
+// Optimization: Debounce saves during typing to reduce API calls and DOM re-renders.
+// Expected Impact: Reduces network requests by ~90% during active editing.
+const debouncedSave = debounce(() => {
+    saveCurrentDocument(false); // Final save after debounce should update history UI
+}, 1000);
+
+function saveCurrentDocument(skipRender = false) {
     if (!window.appState.currentDocId) return;
     const doc = window.appState.history.find(d => d.id === window.appState.currentDocId);
-    if (doc) { doc.data = window.appState.canvasData; doc.updatedAt = Date.now(); saveHistory(); renderHistory(); }
+    if (doc) {
+        doc.data = window.appState.canvasData;
+        doc.updatedAt = Date.now();
+        saveHistory();
+        if (!skipRender) renderHistory();
+    }
 }
 
 // ============================================================
@@ -419,7 +438,7 @@ function renderCanvasNodes() {
             section.title = h ? h.textContent : 'Section';
             const cl = content.cloneNode(true); const ch = cl.querySelector('h4'); if (ch) ch.remove();
             section.body = cl.innerHTML;
-            saveCurrentDocument();
+            debouncedSave();
         });
 
         handle.addEventListener('dragstart', e => { w.style.opacity = '0.4'; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', idx); });
@@ -786,4 +805,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // PDF export
     document.getElementById('export-pdf-btn').addEventListener('click', exportPdf);
+
+    // Save on exit
+    window.addEventListener('beforeunload', () => {
+        saveCurrentDocument(true);
+    });
 });

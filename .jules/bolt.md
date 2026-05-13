@@ -1,0 +1,3 @@
+## 2025-05-14 - Balancing Performance with UI Freshness in Debounced Saves
+**Learning:** When debouncing state persistence that also triggers UI updates (like `renderHistory()`), skipping the render entirely during the debounced call can lead to a stale UI. While it's efficient to skip rendering during active typing, the FINAL execution of the debounced function should ideally trigger a full UI refresh to ensure consistency.
+**Action:** Always ensure the terminal state of a debounced operation leaves the UI in a correct and updated state, even if intermediate steps were skipped for performance.

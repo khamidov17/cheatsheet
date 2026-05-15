@@ -47,6 +47,14 @@ window.showToast = function (msg) {
 
 function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
+function debounce(fn, delay) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
+
 // ============================================================
 // WATERMARK
 // ============================================================
@@ -314,10 +322,26 @@ async function mergeDeviceHistoryToUser(email) {
 
 window.syncStateToBackend = saveHistory;
 
-function saveCurrentDocument() {
+const debouncedSaveHistory = debounce(() => {
+    saveHistory();
+    // We don't call renderHistory here if the user is typing,
+    // but the final debounced call should refresh the UI to ensure the history grid is up-to-date.
+    renderHistory();
+}, 1000);
+
+function saveCurrentDocument(immediate = true) {
     if (!window.appState.currentDocId) return;
     const doc = window.appState.history.find(d => d.id === window.appState.currentDocId);
-    if (doc) { doc.data = window.appState.canvasData; doc.updatedAt = Date.now(); saveHistory(); renderHistory(); }
+    if (doc) {
+        doc.data = window.appState.canvasData;
+        doc.updatedAt = Date.now();
+        if (immediate) {
+            saveHistory();
+            renderHistory();
+        } else {
+            debouncedSaveHistory();
+        }
+    }
 }
 
 // ============================================================
@@ -419,7 +443,7 @@ function renderCanvasNodes() {
             section.title = h ? h.textContent : 'Section';
             const cl = content.cloneNode(true); const ch = cl.querySelector('h4'); if (ch) ch.remove();
             section.body = cl.innerHTML;
-            saveCurrentDocument();
+            saveCurrentDocument(false); // Debounced save during typing
         });
 
         handle.addEventListener('dragstart', e => { w.style.opacity = '0.4'; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', idx); });
@@ -786,4 +810,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // PDF export
     document.getElementById('export-pdf-btn').addEventListener('click', exportPdf);
+
+    // Ensure pending saves are flushed before exit
+    window.addEventListener('beforeunload', () => {
+        saveCurrentDocument(true);
+    });
 });

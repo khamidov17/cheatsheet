@@ -1,0 +1,3 @@
+## 2026-05-15 - Debounced History Persistence
+**Learning:** High-frequency events like 'input' on contentEditable elements can cause excessive API calls and UI re-renders if bound directly to persistence logic. In this app, `saveCurrentDocument` was triggering `saveHistory` (API fetch) and `renderHistory` (DOM reconstruction) on every keystroke.
+**Action:** Use a debounced save path for typing while maintaining an immediate path for discrete actions (reordering, deleting, navigation) to balance performance and data integrity. Always add a `beforeunload` listener to flush pending debounced saves.

@@ -1,0 +1,3 @@
+## 2025-05-14 - Debounce History Persistence
+**Learning:** High-frequency persistence (on every keystroke) is a significant performance bottleneck and source of unnecessary server load. However, purely debounced saving can lead to data loss if the user navigates away or performs a structural action (reordering, deletion) that isn't immediately persisted.
+**Action:** Use a hybrid approach: debounce high-frequency events (like typing) while forcing immediate persistence for structural changes (reordering, AI updates) and page exits (via `beforeunload`). Always refresh the UI (like history grids) immediately after an "immediate" save to maintain state consistency.

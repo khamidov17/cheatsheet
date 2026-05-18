@@ -1,0 +1,3 @@
+## 2025-05-14 - Debouncing History Saves
+**Learning:** In a collaborative or persistent editor environment, firing API calls on every keystroke (`input` event) leads to excessive server load and potential race conditions. Furthermore, re-rendering the history list while the user is actively typing in the editor is a waste of CPU cycles as the history list is not visible.
+**Action:** Implement a `debounce` utility for persistence. Distinguish between "background" saves (typing) and "immediate" saves (reordering, deleting) to balance performance and data safety. Use `keepalive: true` for critical fetch calls to ensure data is saved during page exit.

@@ -1,0 +1,57 @@
+{
+  "users": {},
+  "devices": {
+    "dev-aFXf-VIUf-ejHp": {
+      "history": [
+        {
+          "id": "doc_1779399040669",
+          "title": "My Blank Cheatsheet",
+          "data": [
+            {
+              "title": "Section 1",
+              "body": "<ul><li>Start writing your notes here...</li></ul>"
+            },
+            {
+              "title": "Section 2",
+              "body": "<ul><li>Add more content...</li></ul>"
+            },
+            {
+              "title": "Section 3",
+              "body": "<ul><li>Keep adding...</li></ul>"
+            }
+          ],
+          "updatedAt": 1779399040669,
+          "isAI": false
+        }
+      ],
+      "count": 0,
+      "createdAt": 1779399040803
+    },
+    "dev-mOgL-xM1l-nZH5": {
+      "history": [
+        {
+          "id": "doc_1779399080857",
+          "title": "My Blank Cheatsheet",
+          "data": [
+            {
+              "title": "Section 1",
+              "body": "<ul><li>Start writing your notes here...</li></ul>"
+            },
+            {
+              "title": "Section 2",
+              "body": "<ul><li>Add more content...</li></ul>"
+            },
+            {
+              "title": "Section 3",
+              "body": "<ul><li>Keep adding...</li></ul>"
+            }
+          ],
+          "updatedAt": 1779399081121,
+          "isAI": false
+        }
+      ],
+      "count": 0,
+      "createdAt": 1779399080861
+    }
+  }
+}

@@ -1,0 +1,3 @@
+## 2025-05-14 - Optimized history saving with debouncing and reliability improvements
+**Learning:** Client-side history persistence was triggered on every input event, leading to excessive API calls and UI re-renders. Using a custom debounce utility with .flush() support allows for efficient auto-saving during typing while ensuring critical operations (like navigation or reordering) are persisted immediately. The use of 'keepalive: true' in fetch requests is essential for ensuring data reaches the server during page transitions.
+**Action:** Always prefer debounced persistence for high-frequency events like 'input', and use immediate flushes for critical state changes or 'beforeunload' events.

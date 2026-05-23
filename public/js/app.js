@@ -24,6 +24,38 @@ let pendingGeneration = null;
 // UTILS
 // ============================================================
 
+/**
+ * Debounces a function to prevent it from being called too frequently.
+ * @param {Function} fn - The function to debounce.
+ * @param {number} delay - The delay in milliseconds.
+ * @returns {Function} - The debounced function with .cancel() and .flush() methods.
+ */
+function debounce(fn, delay) {
+    let timeoutId;
+    let lastArgs;
+    let lastThis;
+    const debounced = function (...args) {
+        lastArgs = args;
+        lastThis = this;
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            fn.apply(lastThis, lastArgs);
+            timeoutId = null;
+        }, delay);
+    };
+    debounced.cancel = () => {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+    };
+    debounced.flush = () => {
+        if (timeoutId) {
+            fn.apply(lastThis, lastArgs);
+            debounced.cancel();
+        }
+    };
+    return debounced;
+}
+
 function genId() {
     const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let id = '';
@@ -262,8 +294,10 @@ async function loadDeviceHistory() {
 async function saveDeviceHistory() {
     try {
         await fetch(`${API}/device/${window.appState.deviceId}/history`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(window.appState.history)
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(window.appState.history),
+            keepalive: true
         });
     } catch (e) { }
 }
@@ -282,17 +316,29 @@ async function refreshUserState(email) {
     } catch (e) { }
 }
 
-async function saveHistory() {
+async function saveHistoryInternal() {
     if (window.appState.user && window.appState.user.email) {
         try {
             await fetch(`${API}/user/${encodeURIComponent(window.appState.user.email)}/history`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(window.appState.history)
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(window.appState.history),
+                keepalive: true
             });
         } catch (e) { }
     }
     await saveDeviceHistory();
+    // Refresh history grid if landing view is active
+    if (document.getElementById('landing-view').classList.contains('view-active')) {
+        renderHistory();
+    }
 }
+
+/**
+ * Optimized history persistence with 1s debounce to reduce server load
+ * and keepalive to ensure data is saved even if user leaves.
+ */
+const saveHistory = debounce(saveHistoryInternal, 1000);
 
 async function mergeDeviceHistoryToUser(email) {
     try {
@@ -306,7 +352,7 @@ async function mergeDeviceHistoryToUser(email) {
         const merged = [...userHist];
         for (const d of devHist) { if (!ids.has(d.id)) merged.push(d); }
         window.appState.history = merged;
-        await saveHistory();
+        await saveHistoryInternal();
         if (data.user) { window.appState.user = { ...window.appState.user, ...data.user }; setSignedInUser(window.appState.user); }
         renderHistory();
     } catch (e) { }
@@ -314,10 +360,19 @@ async function mergeDeviceHistoryToUser(email) {
 
 window.syncStateToBackend = saveHistory;
 
-function saveCurrentDocument() {
+function saveCurrentDocument(immediate = false) {
     if (!window.appState.currentDocId) return;
     const doc = window.appState.history.find(d => d.id === window.appState.currentDocId);
-    if (doc) { doc.data = window.appState.canvasData; doc.updatedAt = Date.now(); saveHistory(); renderHistory(); }
+    if (doc) {
+        doc.data = window.appState.canvasData;
+        doc.updatedAt = Date.now();
+        if (immediate) {
+            saveHistory.cancel();
+            saveHistoryInternal();
+        } else {
+            saveHistory();
+        }
+    }
 }
 
 // ============================================================
@@ -398,15 +453,15 @@ function renderCanvasNodes() {
 
         const up = document.createElement('button');
         up.className = 'move-btn'; up.innerHTML = '▲';
-        up.onclick = e => { e.stopPropagation(); if (idx > 0) { [window.appState.canvasData[idx], window.appState.canvasData[idx - 1]] = [window.appState.canvasData[idx - 1], window.appState.canvasData[idx]]; saveCurrentDocument(); renderCanvasNodes(); updateWatermark(); } };
+        up.onclick = e => { e.stopPropagation(); if (idx > 0) { [window.appState.canvasData[idx], window.appState.canvasData[idx - 1]] = [window.appState.canvasData[idx - 1], window.appState.canvasData[idx]]; saveCurrentDocument(true); renderCanvasNodes(); updateWatermark(); } };
 
         const down = document.createElement('button');
         down.className = 'move-btn'; down.innerHTML = '▼';
-        down.onclick = e => { e.stopPropagation(); if (idx < window.appState.canvasData.length - 1) { [window.appState.canvasData[idx], window.appState.canvasData[idx + 1]] = [window.appState.canvasData[idx + 1], window.appState.canvasData[idx]]; saveCurrentDocument(); renderCanvasNodes(); updateWatermark(); } };
+        down.onclick = e => { e.stopPropagation(); if (idx < window.appState.canvasData.length - 1) { [window.appState.canvasData[idx], window.appState.canvasData[idx + 1]] = [window.appState.canvasData[idx + 1], window.appState.canvasData[idx]]; saveCurrentDocument(true); renderCanvasNodes(); updateWatermark(); } };
 
         const del = document.createElement('button');
         del.className = 'move-btn delete-btn'; del.innerHTML = '✕';
-        del.onclick = e => { e.stopPropagation(); window.appState.canvasData.splice(idx, 1); saveCurrentDocument(); renderCanvasNodes(); updateWatermark(); };
+        del.onclick = e => { e.stopPropagation(); window.appState.canvasData.splice(idx, 1); saveCurrentDocument(true); renderCanvasNodes(); updateWatermark(); };
 
         ctrls.appendChild(handle); ctrls.appendChild(up); ctrls.appendChild(down); ctrls.appendChild(del);
 
@@ -431,7 +486,7 @@ function renderCanvasNodes() {
             e.stopPropagation(); e.preventDefault(); this.style.outline = 'none';
             const si = parseInt(e.dataTransfer.getData('text/plain'));
             const ti = parseInt(this.getAttribute('data-idx'));
-            if (si !== ti) { [window.appState.canvasData[si], window.appState.canvasData[ti]] = [window.appState.canvasData[ti], window.appState.canvasData[si]]; saveCurrentDocument(); renderCanvasNodes(); updateWatermark(); }
+            if (si !== ti) { [window.appState.canvasData[si], window.appState.canvasData[ti]] = [window.appState.canvasData[ti], window.appState.canvasData[si]]; saveCurrentDocument(true); renderCanvasNodes(); updateWatermark(); }
         });
 
         w.appendChild(ctrls); w.appendChild(content);
@@ -442,7 +497,7 @@ function renderCanvasNodes() {
     const addBtn = document.createElement('button');
     addBtn.className = 'add-note-btn'; addBtn.id = 'add-note-btn';
     addBtn.innerHTML = '+ Add Blank Note';
-    addBtn.onclick = () => { window.appState.canvasData.push({ title: "My Notes", body: "<ul><li>Write here...</li></ul>" }); saveCurrentDocument(); renderCanvasNodes(); updateWatermark(); };
+    addBtn.onclick = () => { window.appState.canvasData.push({ title: "My Notes", body: "<ul><li>Write here...</li></ul>" }); saveCurrentDocument(true); renderCanvasNodes(); updateWatermark(); };
     canvas.appendChild(addBtn);
     applyTypography();
 }
@@ -557,7 +612,7 @@ Do NOT wrap in \`\`\`json. Output the raw array only.`;
         window.appState.history.push(newDoc);
         window.appState.currentDocIsAI = true;
         openDocument(docId);
-        saveHistory();
+        await saveHistoryInternal();
 
         // Increment count on server
         if (window.appState.user && window.appState.user.email) {
@@ -591,7 +646,7 @@ Do NOT wrap in \`\`\`json. Output the raw array only.`;
 // BLANK CHEATSHEET (FREE — no login, no watermark)
 // ============================================================
 
-function createBlankCheatsheet() {
+async function createBlankCheatsheet() {
     const topicInput = document.getElementById('topic-input');
     const title = (topicInput ? topicInput.value.trim() : '') || 'My Blank Cheatsheet';
 
@@ -606,7 +661,7 @@ function createBlankCheatsheet() {
     window.appState.history.push(newDoc);
     window.appState.currentDocIsAI = false;
     openDocument(docId);
-    saveHistory();
+    await saveHistoryInternal();
     window.showToast('Blank cheatsheet created! Start typing.');
 }
 
@@ -695,7 +750,7 @@ async function handleSendChat() {
             try {
                 const sections = JSON.parse(result.substring(js, je + 1));
                 if (Array.isArray(sections) && sections.length > 0 && sections[0].title) {
-                    window.appState.canvasData = sections; renderCanvasNodes(); saveCurrentDocument(); updateWatermark();
+                    window.appState.canvasData = sections; renderCanvasNodes(); saveCurrentDocument(true); updateWatermark();
                     appendChat('ai', '✅ Cheatsheet updated!'); clearPendingFiles(); return;
                 }
             } catch (e) { }
@@ -755,7 +810,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Upgrade to Pro
     document.getElementById('upgrade-btn').addEventListener('click', showPaymentModal);
     // Back
-    document.getElementById('back-btn').addEventListener('click', () => { saveCurrentDocument(); toggleChat(false); switchToLanding(); });
+    document.getElementById('back-btn').addEventListener('click', () => { saveCurrentDocument(true); toggleChat(false); switchToLanding(); });
 
     // Toolbar — cols
     const mainCanvas = document.getElementById('main-canvas');
@@ -786,4 +841,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // PDF export
     document.getElementById('export-pdf-btn').addEventListener('click', exportPdf);
+
+    // Ensure persistence on exit
+    window.addEventListener('beforeunload', () => {
+        saveHistory.flush();
+    });
 });

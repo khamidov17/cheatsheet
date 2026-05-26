@@ -1,0 +1,65 @@
+{
+  "users": {},
+  "devices": {
+    "dev-CLee-Yizf-rzn9": {
+      "history": [
+        {
+          "id": "doc_1779831980277",
+          "title": "My Blank Cheatsheet",
+          "data": [
+            {
+              "title": "Section 1",
+              "body": "<ul><li>Start writing aaaaaaaaaaaaaaaaaaaayour notes here...</li></ul>"
+            },
+            {
+              "title": "Section 2",
+              "body": "<ul><li>Add more content...</li></ul>"
+            },
+            {
+              "title": "Section 3",
+              "body": "<ul><li>Keep adding...</li></ul>"
+            },
+            {
+              "title": "My Notes",
+              "body": "<ul><li>Write here...</li></ul>"
+            }
+          ],
+          "updatedAt": 1779831983573,
+          "isAI": false
+        }
+      ],
+      "count": 0,
+      "createdAt": 1779831982494
+    },
+    "dev-QExC-PuL9-51uD": {
+      "history": [
+        {
+          "id": "doc_1779832090924",
+          "title": "My Blank Cheatsheet",
+          "data": [
+            {
+              "title": "Section 1",
+              "body": "<ul><li>Start writing Hello from Bolt Performance!your notes here...</li></ul>"
+            },
+            {
+              "title": "Section 2",
+              "body": "<ul><li>Add more content...</li></ul>"
+            },
+            {
+              "title": "Section 3",
+              "body": "<ul><li>Keep adding...</li></ul>"
+            },
+            {
+              "title": "My Notes",
+              "body": "<ul><li>Write here...</li></ul>"
+            }
+          ],
+          "updatedAt": 1779832094333,
+          "isAI": false
+        }
+      ],
+      "count": 0,
+      "createdAt": 1779832091952
+    }
+  }
+}

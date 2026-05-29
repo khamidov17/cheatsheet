@@ -1,0 +1,3 @@
+## 2025-05-14 - Debounced History Saving & Reliability
+**Learning:** In a collaborative editor-like environment, every keystroke can trigger a network request if not throttled. This codebase had no debouncing for document saves, leading to high latency and redundant server traffic. Additionally, data persistence was unreliable during page exits because `fetch` calls didn't use the `keepalive` flag.
+**Action:** Always implement a `debounce` utility with `.flush()` and `.cancel()` methods for persistent state updates. Use `keepalive: true` in `fetch` for critical data that must be saved on page transition or closure. Use immediate saves for structural changes (reorder, delete) and debounced saves for content updates (typing).

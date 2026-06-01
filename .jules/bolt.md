@@ -1,0 +1,3 @@
+## 2025-05-15 - Debounced History Persistence
+**Learning:** In a collaborative/synced editor, saving on every keystroke causes a performance bottleneck due to excessive fetch calls and UI re-renders. Debouncing with a flush on `beforeunload` ensures data integrity while significantly reducing load. Using `keepalive: true` in fetch is critical for background persistence during page navigation. Parallelizing multiple API calls with `Promise.all` minimizes total wait time.
+**Action:** Always implement debouncing for persistence layers that are triggered by frequent user input. Use conditional UI updates to avoid "grid flickering" when the user is actively editing.

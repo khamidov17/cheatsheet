@@ -1,0 +1,3 @@
+## 2025-05-24 - Optimized document persistence and rendering
+**Learning:** The previous implementation triggered a full history re-render and sequential network requests on every 'input' event in the canvas, causing significant lag and network congestion during active typing. Additionally, `fetch` requests without `keepalive` could be cancelled if the user navigated away before completion.
+**Action:** Implemented debounced parallel persistence with `Promise.all` and `keepalive: true` to ensure reliable, non-blocking saves. Added a visibility guard to `renderHistory` to prevent unnecessary DOM updates when the user is not on the landing page.

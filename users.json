@@ -1,0 +1,57 @@
+{
+  "users": {},
+  "devices": {
+    "dev-a90h-KW7V-Bov7": {
+      "history": [
+        {
+          "id": "doc_1781213499806",
+          "title": "My Blank Cheatsheet",
+          "data": [
+            {
+              "title": "Optimized Section",
+              "body": "<ul><li>Testing debounced persistence.</li></ul>"
+            },
+            {
+              "title": "Section 2",
+              "body": "<ul><li>Add more content...</li></ul>"
+            },
+            {
+              "title": "Section 3",
+              "body": "<ul><li>Keep adding...</li></ul>"
+            }
+          ],
+          "updatedAt": 1781213502068,
+          "isAI": false
+        }
+      ],
+      "count": 0,
+      "createdAt": 1781213499821
+    },
+    "dev-tXNd-DPm7-3cV2": {
+      "history": [
+        {
+          "id": "doc_1781213743979",
+          "title": "My Blank Cheatsheet",
+          "data": [
+            {
+              "title": "Section 1",
+              "body": "<ul><li>Start writing Final verification textyour notes here...</li></ul>"
+            },
+            {
+              "title": "Section 2",
+              "body": "<ul><li>Add more content...</li></ul>"
+            },
+            {
+              "title": "Section 3",
+              "body": "<ul><li>Keep adding...</li></ul>"
+            }
+          ],
+          "updatedAt": 1781213746293,
+          "isAI": false
+        }
+      ],
+      "count": 0,
+      "createdAt": 1781213743984
+    }
+  }
+}

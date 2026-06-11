@@ -2,7 +2,7 @@
 node_modules/
 
 # Database (local only)
-db.json
+users.json
 
 # Uploads
 uploads/

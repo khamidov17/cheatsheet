@@ -1,0 +1,31 @@
+{
+  "users": {},
+  "devices": {
+    "dev-sX8K-KoQc-BWVB": {
+      "history": [
+        {
+          "id": "doc_1781473016907",
+          "title": "My Blank Cheatsheet",
+          "data": [
+            {
+              "title": "Section 1",
+              "body": "<ul><li>Start writing Bolt is lightning fast! your notes here...</li></ul>"
+            },
+            {
+              "title": "Section 2",
+              "body": "<ul><li>Add more content...</li></ul>"
+            },
+            {
+              "title": "Section 3",
+              "body": "<ul><li>Keep adding...</li></ul>"
+            }
+          ],
+          "updatedAt": 1781473021023,
+          "isAI": false
+        }
+      ],
+      "count": 0,
+      "createdAt": 1781473016949
+    }
+  }
+}

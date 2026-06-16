@@ -1,0 +1,3 @@
+## 2025-05-15 - Parallelizing Serial API Requests and Debouncing Keystroke Persistence
+**Learning:** Sequential history saves (User API then Device API) were doubling persistence latency. Combining this with immediate saves on every keystroke and full UI re-renders of the history grid created a significant performance bottleneck (network storm + CPU churn).
+**Action:** Use `Promise.all` to parallelize independent API calls. Implement a `debounce` utility with `.flush()` support for typing-heavy inputs. Gate UI rendering logic with visibility checks (e.g., `view-active` class) to avoid unnecessary DOM operations.

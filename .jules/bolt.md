@@ -1,0 +1,3 @@
+## 2025-05-22 - [Optimized history persistence and UI rendering]
+**Learning:** Found a performance bottleneck where document history saves were being triggered on every keystroke, causing redundant sequential network requests and expensive UI re-renders. Implementing a debounced persistence flow with parallel API requests and conditional rendering logic significantly reduced API traffic and improved frontend responsiveness.
+**Action:** Use debounced parallel persistence for frequently updated state, and ensure critical state transitions (like navigation or document structural changes) flush the debounce buffer for immediate consistency.

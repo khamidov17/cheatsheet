@@ -24,6 +24,46 @@ let pendingGeneration = null;
 // UTILS
 // ============================================================
 
+/**
+ * Optimized debounce utility with support for .cancel(), .flush() and .pending().
+ * Captures 'this' context and returns the result in .flush() for immediate awaiting.
+ * Expected impact: Reduces redundant network calls and UI re-renders during active typing.
+ */
+function debounce(fn, delay) {
+    let timeoutId = null;
+    let lastArgs = null;
+    let lastThis = null;
+
+    const debounced = function (...args) {
+        lastArgs = args;
+        lastThis = this;
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            fn.apply(lastThis, lastArgs);
+            timeoutId = null;
+        }, delay);
+    };
+
+    debounced.cancel = () => {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+        }
+    };
+
+    debounced.flush = () => {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+            return fn.apply(lastThis, lastArgs);
+        }
+    };
+
+    debounced.pending = () => timeoutId !== null;
+
+    return debounced;
+}
+
 function genId() {
     const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let id = '';
@@ -282,16 +322,42 @@ async function refreshUserState(email) {
     } catch (e) { }
 }
 
-async function saveHistory() {
+/**
+ * Internal history save implementation.
+ * Expected impact: Parallelizes network requests to improve persistence speed.
+ */
+async function saveHistoryInternal() {
+    const saves = [];
     if (window.appState.user && window.appState.user.email) {
-        try {
-            await fetch(`${API}/user/${encodeURIComponent(window.appState.user.email)}/history`, {
+        saves.push(
+            fetch(`${API}/user/${encodeURIComponent(window.appState.user.email)}/history`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(window.appState.history)
-            });
-        } catch (e) { }
+            }).catch(e => console.error('User history save failed', e))
+        );
     }
-    await saveDeviceHistory();
+    saves.push(saveDeviceHistory());
+
+    await Promise.all(saves);
+
+    // Refresh history UI if we are on the landing page
+    if (document.getElementById('landing-view').classList.contains('view-active')) {
+        renderHistory();
+    }
+}
+
+/**
+ * Debounced version of history saving to prevent excessive network traffic.
+ */
+const debouncedSaveHistory = debounce(saveHistoryInternal, 1000);
+
+async function saveHistory(force = false) {
+    if (force) {
+        debouncedSaveHistory.cancel();
+        await saveHistoryInternal();
+    } else {
+        debouncedSaveHistory();
+    }
 }
 
 async function mergeDeviceHistoryToUser(email) {
@@ -314,10 +380,18 @@ async function mergeDeviceHistoryToUser(email) {
 
 window.syncStateToBackend = saveHistory;
 
-function saveCurrentDocument() {
+/**
+ * Saves current document state.
+ * Expected impact: Debounced persistence significantly reduces server load and UI lag.
+ */
+function saveCurrentDocument(force = false) {
     if (!window.appState.currentDocId) return;
     const doc = window.appState.history.find(d => d.id === window.appState.currentDocId);
-    if (doc) { doc.data = window.appState.canvasData; doc.updatedAt = Date.now(); saveHistory(); renderHistory(); }
+    if (doc) {
+        doc.data = window.appState.canvasData;
+        doc.updatedAt = Date.now();
+        saveHistory(force);
+    }
 }
 
 // ============================================================
@@ -331,7 +405,12 @@ function hidePaymentModal() { document.getElementById('payment-modal').classList
 // HISTORY
 // ============================================================
 
-function renderHistory() {
+/**
+ * Renders the recent cheatsheets grid.
+ * Expected impact: Debouncing and conditional rendering skip unnecessary DOM manipulations
+ * when the user is not looking at the landing page.
+ */
+const renderHistoryInternal = () => {
     const sec = document.getElementById('history-section');
     const grid = document.getElementById('history-grid');
     if (!sec || !grid) return;
@@ -345,6 +424,17 @@ function renderHistory() {
         card.addEventListener('click', () => openDocument(doc.id));
         grid.appendChild(card);
     });
+};
+
+const debouncedRenderHistory = debounce(renderHistoryInternal, 500);
+
+function renderHistory(force = false) {
+    if (force) {
+        debouncedRenderHistory.cancel();
+        renderHistoryInternal();
+    } else {
+        debouncedRenderHistory();
+    }
 }
 
 // ============================================================
@@ -419,7 +509,8 @@ function renderCanvasNodes() {
             section.title = h ? h.textContent : 'Section';
             const cl = content.cloneNode(true); const ch = cl.querySelector('h4'); if (ch) ch.remove();
             section.body = cl.innerHTML;
-            saveCurrentDocument();
+            // Use debounced saving for typing to reduce server load and UI lag
+            saveCurrentDocument(false);
         });
 
         handle.addEventListener('dragstart', e => { w.style.opacity = '0.4'; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', idx); });
@@ -786,4 +877,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // PDF export
     document.getElementById('export-pdf-btn').addEventListener('click', exportPdf);
+
+    // Ensure pending saves are flushed on page exit
+    window.addEventListener('beforeunload', () => {
+        if (debouncedSaveHistory.pending()) {
+            debouncedSaveHistory.flush();
+        }
+    });
 });

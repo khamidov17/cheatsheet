@@ -1,0 +1,3 @@
+## 2025-05-23 - History Persistence Optimization
+**Learning:** Sequential network requests for history persistence (user and device) were causing significant latency and redundant UI re-renders on every keystroke. Using `Promise.all` for parallel persistence and debouncing the save operation significantly improves the editing experience. Added `keepalive: true` to help with persistence on page exit, while respecting the 64KB browser limit.
+**Action:** Use debounced parallel persistence for frequently updated state and optimize UI re-renders by checking view visibility. Use `keepalive` for critical end-of-session data syncing.

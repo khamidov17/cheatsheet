@@ -1,0 +1,3 @@
+## 2025-05-15 - Debounced and Parallel History Persistence
+**Learning:** Sequential network requests for history persistence (User API followed by Device API) on every keystroke created significant network overhead and potential race conditions. Immediate UI re-renders of the history grid during active typing further degraded performance.
+**Action:** Implemented a debounced persistence layer (1000ms) with parallelized API calls using `Promise.all`. Added conditional rendering to `renderHistory` to skip updates during active editing unless explicitly forced. Ensured data integrity by flushing the debounce buffer on `beforeunload`.

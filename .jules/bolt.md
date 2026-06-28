@@ -1,0 +1,3 @@
+## 2025-05-15 - Redundant Sequential History Saves
+**Learning:** Sequential network requests (user history followed by device history) combined with full DOM re-renders of the history grid on every keystroke created a massive performance bottleneck. This pattern significantly increased latency and network traffic (~12 requests per 10 characters typed) and made the UI feel sluggish during active editing.
+**Action:** Implement debounced parallel persistence using `Promise.all` and a custom `debounce` utility. Optimize UI updates by skipping `renderHistory()` while in the editor view, only triggering it for critical forced saves or when returning to the landing page.

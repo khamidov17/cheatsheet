@@ -24,6 +24,46 @@ let pendingGeneration = null;
 // UTILS
 // ============================================================
 
+/**
+ * Standard debounce utility with .flush(), .cancel(), and .pending() methods.
+ * Used to optimize performance by limiting the rate of frequent function calls.
+ */
+function debounce(fn, delay) {
+    let timeoutId = null;
+    let lastArgs = null;
+    let lastThis = null;
+
+    const debounced = function (...args) {
+        lastArgs = args;
+        lastThis = this;
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            const result = fn.apply(lastThis, lastArgs);
+            timeoutId = null;
+            return result;
+        }, delay);
+    };
+
+    debounced.cancel = () => {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+        }
+    };
+
+    debounced.flush = () => {
+        if (timeoutId) {
+            const result = fn.apply(lastThis, lastArgs);
+            debounced.cancel();
+            return result;
+        }
+    };
+
+    debounced.pending = () => timeoutId !== null;
+
+    return debounced;
+}
+
 function genId() {
     const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let id = '';
@@ -282,16 +322,38 @@ async function refreshUserState(email) {
     } catch (e) { }
 }
 
-async function saveHistory() {
+/**
+ * Internal function to persist history to the backend.
+ * Parallelizes requests to optimize network usage and performance.
+ */
+async function saveHistoryInternal() {
+    const promises = [];
     if (window.appState.user && window.appState.user.email) {
-        try {
-            await fetch(`${API}/user/${encodeURIComponent(window.appState.user.email)}/history`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
+        promises.push(
+            fetch(`${API}/user/${encodeURIComponent(window.appState.user.email)}/history`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(window.appState.history)
-            });
-        } catch (e) { }
+            }).catch(e => console.error('User history save failed:', e))
+        );
     }
-    await saveDeviceHistory();
+    promises.push(saveDeviceHistory());
+    return Promise.all(promises);
+}
+
+const debouncedSaveHistory = debounce(saveHistoryInternal, 1000);
+
+/**
+ * Public save wrapper.
+ * If force=true, it flushes any pending debounced save or executes immediately.
+ * Otherwise, it uses the debounced version to prevent network congestion.
+ */
+function saveHistory(force = false) {
+    if (force) {
+        if (debouncedSaveHistory.pending()) return debouncedSaveHistory.flush();
+        return saveHistoryInternal();
+    }
+    return debouncedSaveHistory();
 }
 
 async function mergeDeviceHistoryToUser(email) {
@@ -306,18 +368,36 @@ async function mergeDeviceHistoryToUser(email) {
         const merged = [...userHist];
         for (const d of devHist) { if (!ids.has(d.id)) merged.push(d); }
         window.appState.history = merged;
-        await saveHistory();
+        await saveHistory(true);
         if (data.user) { window.appState.user = { ...window.appState.user, ...data.user }; setSignedInUser(window.appState.user); }
         renderHistory();
     } catch (e) { }
 }
 
-window.syncStateToBackend = saveHistory;
+window.syncStateToBackend = () => saveHistory(true);
 
-function saveCurrentDocument() {
+/**
+ * Updates the current document state and persists it.
+ * Optimizes performance by debouncing the backend save and conditionally rendering the history UI.
+ * @param {boolean} force - If true, persists immediately and always refreshes history UI.
+ */
+function saveCurrentDocument(force = false) {
     if (!window.appState.currentDocId) return;
     const doc = window.appState.history.find(d => d.id === window.appState.currentDocId);
-    if (doc) { doc.data = window.appState.canvasData; doc.updatedAt = Date.now(); saveHistory(); renderHistory(); }
+    if (doc) {
+        // Immediate local state update
+        doc.data = [...window.appState.canvasData];
+        doc.updatedAt = Date.now();
+
+        // Debounced or immediate persistence
+        saveHistory(force);
+
+        // UI optimization: Only re-render history grid if landing view is active or forced
+        const landingActive = document.getElementById('landing-view').classList.contains('view-active');
+        if (force || landingActive) {
+            renderHistory();
+        }
+    }
 }
 
 // ============================================================
@@ -361,6 +441,7 @@ function switchToEditor(title) {
 function switchToLanding() {
     document.getElementById('editor-view').classList.replace('view-active', 'hidden');
     document.getElementById('landing-view').classList.replace('hidden', 'view-active');
+    renderHistory();
     removeWatermark();
 }
 
@@ -557,7 +638,7 @@ Do NOT wrap in \`\`\`json. Output the raw array only.`;
         window.appState.history.push(newDoc);
         window.appState.currentDocIsAI = true;
         openDocument(docId);
-        saveHistory();
+        saveHistory(true);
 
         // Increment count on server
         if (window.appState.user && window.appState.user.email) {
@@ -606,7 +687,7 @@ function createBlankCheatsheet() {
     window.appState.history.push(newDoc);
     window.appState.currentDocIsAI = false;
     openDocument(docId);
-    saveHistory();
+    saveHistory(true);
     window.showToast('Blank cheatsheet created! Start typing.');
 }
 
@@ -755,7 +836,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Upgrade to Pro
     document.getElementById('upgrade-btn').addEventListener('click', showPaymentModal);
     // Back
-    document.getElementById('back-btn').addEventListener('click', () => { saveCurrentDocument(); toggleChat(false); switchToLanding(); });
+    document.getElementById('back-btn').addEventListener('click', () => { saveCurrentDocument(true); toggleChat(false); switchToLanding(); });
 
     // Toolbar — cols
     const mainCanvas = document.getElementById('main-canvas');
@@ -786,4 +867,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // PDF export
     document.getElementById('export-pdf-btn').addEventListener('click', exportPdf);
+
+    // Flush debounced save on page unload
+    window.addEventListener('beforeunload', () => {
+        if (debouncedSaveHistory.pending()) {
+            debouncedSaveHistory.flush();
+        }
+    });
 });

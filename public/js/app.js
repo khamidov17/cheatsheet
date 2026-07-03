@@ -31,6 +31,42 @@ function genId() {
     return id.slice(0, 4) + '-' + id.slice(4, 8) + '-' + id.slice(8);
 }
 
+/**
+ * Debounce function to limit execution frequency.
+ * Returns a function with .flush() and .pending() methods.
+ */
+function debounce(fn, delay) {
+    let timeoutId;
+    let lastArgs;
+    let lastThis;
+    let result;
+
+    const debounced = function (...args) {
+        lastArgs = args;
+        lastThis = this;
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            result = fn.apply(lastThis, lastArgs);
+            timeoutId = null;
+        }, delay);
+    };
+
+    debounced.flush = function () {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+            result = fn.apply(lastThis, lastArgs);
+            timeoutId = null;
+        }
+        return result;
+    };
+
+    debounced.pending = function () {
+        return !!timeoutId;
+    };
+
+    return debounced;
+}
+
 function getDeviceId() {
     let id = localStorage.getItem('cheatsheet_device_id');
     if (!id) { id = 'dev-' + genId(); localStorage.setItem('cheatsheet_device_id', id); }
@@ -261,11 +297,11 @@ async function loadDeviceHistory() {
 
 async function saveDeviceHistory() {
     try {
-        await fetch(`${API}/device/${window.appState.deviceId}/history`, {
+        return await fetch(`${API}/device/${window.appState.deviceId}/history`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(window.appState.history)
         });
-    } catch (e) { }
+    } catch (e) { console.error('Device history save failed', e); }
 }
 
 async function refreshUserState(email) {
@@ -282,16 +318,44 @@ async function refreshUserState(email) {
     } catch (e) { }
 }
 
-async function saveHistory() {
+/**
+ * Internal persistence logic. Parallelizes network requests.
+ */
+async function saveHistoryInternal() {
+    const promises = [];
     if (window.appState.user && window.appState.user.email) {
-        try {
-            await fetch(`${API}/user/${encodeURIComponent(window.appState.user.email)}/history`, {
+        promises.push(
+            fetch(`${API}/user/${encodeURIComponent(window.appState.user.email)}/history`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(window.appState.history)
-            });
-        } catch (e) { }
+            }).catch(e => console.error('User history save failed', e))
+        );
     }
-    await saveDeviceHistory();
+    promises.push(saveDeviceHistory());
+    await Promise.all(promises);
+
+    // Only re-render history if we are on the landing page
+    const landing = document.getElementById('landing-view');
+    if (landing && landing.classList.contains('view-active')) {
+        renderHistory();
+    }
+}
+
+// Debounced history persistence (1000ms) to prevent excessive API calls
+const debouncedSaveHistory = debounce(saveHistoryInternal, 1000);
+
+/**
+ * Persists history to backend.
+ * @param {boolean} force - If true, flushes any pending saves immediately.
+ */
+function saveHistory(force = false) {
+    if (force) {
+        if (debouncedSaveHistory.pending()) {
+            return debouncedSaveHistory.flush();
+        }
+        return saveHistoryInternal();
+    }
+    debouncedSaveHistory();
 }
 
 async function mergeDeviceHistoryToUser(email) {
@@ -306,18 +370,25 @@ async function mergeDeviceHistoryToUser(email) {
         const merged = [...userHist];
         for (const d of devHist) { if (!ids.has(d.id)) merged.push(d); }
         window.appState.history = merged;
-        await saveHistory();
+        await saveHistory(true); // Force immediate save after merge
         if (data.user) { window.appState.user = { ...window.appState.user, ...data.user }; setSignedInUser(window.appState.user); }
-        renderHistory();
     } catch (e) { }
 }
 
-window.syncStateToBackend = saveHistory;
+window.syncStateToBackend = () => saveHistory(true);
 
-function saveCurrentDocument() {
+/**
+ * Updates the current document in history and triggers persistence.
+ * @param {boolean} force - If true, persists immediately.
+ */
+function saveCurrentDocument(force = false) {
     if (!window.appState.currentDocId) return;
     const doc = window.appState.history.find(d => d.id === window.appState.currentDocId);
-    if (doc) { doc.data = window.appState.canvasData; doc.updatedAt = Date.now(); saveHistory(); renderHistory(); }
+    if (doc) {
+        doc.data = [...window.appState.canvasData];
+        doc.updatedAt = Date.now();
+        saveHistory(force);
+    }
 }
 
 // ============================================================
@@ -362,6 +433,7 @@ function switchToLanding() {
     document.getElementById('editor-view').classList.replace('view-active', 'hidden');
     document.getElementById('landing-view').classList.replace('hidden', 'view-active');
     removeWatermark();
+    renderHistory();
 }
 
 function openDocument(docId) {
@@ -557,7 +629,7 @@ Do NOT wrap in \`\`\`json. Output the raw array only.`;
         window.appState.history.push(newDoc);
         window.appState.currentDocIsAI = true;
         openDocument(docId);
-        saveHistory();
+        saveHistory(true);
 
         // Increment count on server
         if (window.appState.user && window.appState.user.email) {
@@ -606,7 +678,7 @@ function createBlankCheatsheet() {
     window.appState.history.push(newDoc);
     window.appState.currentDocIsAI = false;
     openDocument(docId);
-    saveHistory();
+    saveHistory(true);
     window.showToast('Blank cheatsheet created! Start typing.');
 }
 
@@ -695,7 +767,7 @@ async function handleSendChat() {
             try {
                 const sections = JSON.parse(result.substring(js, je + 1));
                 if (Array.isArray(sections) && sections.length > 0 && sections[0].title) {
-                    window.appState.canvasData = sections; renderCanvasNodes(); saveCurrentDocument(); updateWatermark();
+                    window.appState.canvasData = sections; renderCanvasNodes(); saveCurrentDocument(true); updateWatermark();
                     appendChat('ai', '✅ Cheatsheet updated!'); clearPendingFiles(); return;
                 }
             } catch (e) { }
@@ -723,6 +795,13 @@ function renderPendingFiles() {
 
 document.addEventListener('DOMContentLoaded', () => {
     window.appState.deviceId = getDeviceId();
+
+    // Ensure pending changes are saved on exit
+    window.addEventListener('beforeunload', () => {
+        if (debouncedSaveHistory.pending()) {
+            debouncedSaveHistory.flush();
+        }
+    });
     initGoogleSignIn();
 
     // Load history
@@ -755,7 +834,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Upgrade to Pro
     document.getElementById('upgrade-btn').addEventListener('click', showPaymentModal);
     // Back
-    document.getElementById('back-btn').addEventListener('click', () => { saveCurrentDocument(); toggleChat(false); switchToLanding(); });
+    document.getElementById('back-btn').addEventListener('click', () => { saveCurrentDocument(true); toggleChat(false); switchToLanding(); });
 
     // Toolbar — cols
     const mainCanvas = document.getElementById('main-canvas');

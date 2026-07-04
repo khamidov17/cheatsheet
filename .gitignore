@@ -3,6 +3,8 @@ node_modules/
 
 # Database (local only)
 db.json
+users.json
+pnpm-lock.yaml
 
 # Uploads
 uploads/
@@ -18,6 +20,8 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+verification/
+test-results/
 
 # Logs
 *.log

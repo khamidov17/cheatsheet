@@ -31,6 +31,49 @@ function genId() {
     return id.slice(0, 4) + '-' + id.slice(4, 8) + '-' + id.slice(8);
 }
 
+/**
+ * Debounces a function to prevent it from being called too frequently.
+ * Includes .flush(), .cancel(), and .pending() for lifecycle management.
+ *
+ * @param {Function} fn - The function to debounce.
+ * @param {number} delay - The delay in milliseconds.
+ * @returns {Function} - The debounced function.
+ */
+function debounce(fn, delay) {
+    let timeoutId = null;
+    let lastArgs = null;
+    let lastThis = null;
+
+    const debounced = function (...args) {
+        lastArgs = args;
+        lastThis = this;
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            fn.apply(lastThis, lastArgs);
+            timeoutId = null;
+        }, delay);
+    };
+
+    debounced.cancel = () => {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+        }
+    };
+
+    debounced.flush = () => {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+            return fn.apply(lastThis, lastArgs);
+        }
+    };
+
+    debounced.pending = () => !!timeoutId;
+
+    return debounced;
+}
+
 function getDeviceId() {
     let id = localStorage.getItem('cheatsheet_device_id');
     if (!id) { id = 'dev-' + genId(); localStorage.setItem('cheatsheet_device_id', id); }
@@ -259,13 +302,11 @@ async function loadDeviceHistory() {
     } catch (e) { }
 }
 
-async function saveDeviceHistory() {
-    try {
-        await fetch(`${API}/device/${window.appState.deviceId}/history`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(window.appState.history)
-        });
-    } catch (e) { }
+function saveDeviceHistory() {
+    return fetch(`${API}/device/${window.appState.deviceId}/history`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(window.appState.history)
+    }).catch(e => console.error('Device save failed', e));
 }
 
 async function refreshUserState(email) {
@@ -282,16 +323,36 @@ async function refreshUserState(email) {
     } catch (e) { }
 }
 
-async function saveHistory() {
+/**
+ * Persists history to both user account (if signed in) and device.
+ * Parallelizes network requests to reduce latency.
+ */
+async function saveHistoryInternal() {
+    const tasks = [saveDeviceHistory()];
     if (window.appState.user && window.appState.user.email) {
-        try {
-            await fetch(`${API}/user/${encodeURIComponent(window.appState.user.email)}/history`, {
+        tasks.push(
+            fetch(`${API}/user/${encodeURIComponent(window.appState.user.email)}/history`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(window.appState.history)
-            });
-        } catch (e) { }
+            }).catch(e => console.error('User save failed', e))
+        );
     }
-    await saveDeviceHistory();
+    return Promise.all(tasks);
+}
+
+// Debounced version for frequent updates (typing)
+const debouncedSaveHistory = debounce(saveHistoryInternal, 1000);
+
+/**
+ * Public saveHistory wrapper.
+ * @param {boolean} force - If true, flushes any pending save immediately.
+ */
+async function saveHistory(force = false) {
+    if (force) {
+        if (debouncedSaveHistory.pending()) return debouncedSaveHistory.flush();
+        return saveHistoryInternal();
+    }
+    return debouncedSaveHistory();
 }
 
 async function mergeDeviceHistoryToUser(email) {
@@ -306,18 +367,32 @@ async function mergeDeviceHistoryToUser(email) {
         const merged = [...userHist];
         for (const d of devHist) { if (!ids.has(d.id)) merged.push(d); }
         window.appState.history = merged;
-        await saveHistory();
+        await saveHistory(true);
         if (data.user) { window.appState.user = { ...window.appState.user, ...data.user }; setSignedInUser(window.appState.user); }
         renderHistory();
     } catch (e) { }
 }
 
-window.syncStateToBackend = saveHistory;
+window.syncStateToBackend = () => saveHistory(true);
 
-function saveCurrentDocument() {
+/**
+ * Updates the current document state and triggers persistence.
+ * Performance: Debounces network calls and skips UI re-renders if editor is active.
+ *
+ * @param {boolean} force - If true, saves immediately and forces a history refresh.
+ */
+function saveCurrentDocument(force = false) {
     if (!window.appState.currentDocId) return;
     const doc = window.appState.history.find(d => d.id === window.appState.currentDocId);
-    if (doc) { doc.data = window.appState.canvasData; doc.updatedAt = Date.now(); saveHistory(); renderHistory(); }
+    if (doc) {
+        doc.data = [...window.appState.canvasData]; // Use spread to ensure fresh reference
+        doc.updatedAt = Date.now();
+        saveHistory(force);
+
+        // Optimization: Only render history if landing view is active
+        const landingActive = document.getElementById('landing-view').classList.contains('view-active');
+        if (force || landingActive) renderHistory();
+    }
 }
 
 // ============================================================
@@ -398,15 +473,15 @@ function renderCanvasNodes() {
 
         const up = document.createElement('button');
         up.className = 'move-btn'; up.innerHTML = '▲';
-        up.onclick = e => { e.stopPropagation(); if (idx > 0) { [window.appState.canvasData[idx], window.appState.canvasData[idx - 1]] = [window.appState.canvasData[idx - 1], window.appState.canvasData[idx]]; saveCurrentDocument(); renderCanvasNodes(); updateWatermark(); } };
+        up.onclick = e => { e.stopPropagation(); if (idx > 0) { [window.appState.canvasData[idx], window.appState.canvasData[idx - 1]] = [window.appState.canvasData[idx - 1], window.appState.canvasData[idx]]; saveCurrentDocument(true); renderCanvasNodes(); updateWatermark(); } };
 
         const down = document.createElement('button');
         down.className = 'move-btn'; down.innerHTML = '▼';
-        down.onclick = e => { e.stopPropagation(); if (idx < window.appState.canvasData.length - 1) { [window.appState.canvasData[idx], window.appState.canvasData[idx + 1]] = [window.appState.canvasData[idx + 1], window.appState.canvasData[idx]]; saveCurrentDocument(); renderCanvasNodes(); updateWatermark(); } };
+        down.onclick = e => { e.stopPropagation(); if (idx < window.appState.canvasData.length - 1) { [window.appState.canvasData[idx], window.appState.canvasData[idx + 1]] = [window.appState.canvasData[idx + 1], window.appState.canvasData[idx]]; saveCurrentDocument(true); renderCanvasNodes(); updateWatermark(); } };
 
         const del = document.createElement('button');
         del.className = 'move-btn delete-btn'; del.innerHTML = '✕';
-        del.onclick = e => { e.stopPropagation(); window.appState.canvasData.splice(idx, 1); saveCurrentDocument(); renderCanvasNodes(); updateWatermark(); };
+        del.onclick = e => { e.stopPropagation(); window.appState.canvasData.splice(idx, 1); saveCurrentDocument(true); renderCanvasNodes(); updateWatermark(); };
 
         ctrls.appendChild(handle); ctrls.appendChild(up); ctrls.appendChild(down); ctrls.appendChild(del);
 
@@ -431,7 +506,7 @@ function renderCanvasNodes() {
             e.stopPropagation(); e.preventDefault(); this.style.outline = 'none';
             const si = parseInt(e.dataTransfer.getData('text/plain'));
             const ti = parseInt(this.getAttribute('data-idx'));
-            if (si !== ti) { [window.appState.canvasData[si], window.appState.canvasData[ti]] = [window.appState.canvasData[ti], window.appState.canvasData[si]]; saveCurrentDocument(); renderCanvasNodes(); updateWatermark(); }
+            if (si !== ti) { [window.appState.canvasData[si], window.appState.canvasData[ti]] = [window.appState.canvasData[ti], window.appState.canvasData[si]]; saveCurrentDocument(true); renderCanvasNodes(); updateWatermark(); }
         });
 
         w.appendChild(ctrls); w.appendChild(content);
@@ -442,7 +517,7 @@ function renderCanvasNodes() {
     const addBtn = document.createElement('button');
     addBtn.className = 'add-note-btn'; addBtn.id = 'add-note-btn';
     addBtn.innerHTML = '+ Add Blank Note';
-    addBtn.onclick = () => { window.appState.canvasData.push({ title: "My Notes", body: "<ul><li>Write here...</li></ul>" }); saveCurrentDocument(); renderCanvasNodes(); updateWatermark(); };
+    addBtn.onclick = () => { window.appState.canvasData.push({ title: "My Notes", body: "<ul><li>Write here...</li></ul>" }); saveCurrentDocument(true); renderCanvasNodes(); updateWatermark(); };
     canvas.appendChild(addBtn);
     applyTypography();
 }
@@ -557,7 +632,7 @@ Do NOT wrap in \`\`\`json. Output the raw array only.`;
         window.appState.history.push(newDoc);
         window.appState.currentDocIsAI = true;
         openDocument(docId);
-        saveHistory();
+        saveHistory(true);
 
         // Increment count on server
         if (window.appState.user && window.appState.user.email) {
@@ -606,7 +681,7 @@ function createBlankCheatsheet() {
     window.appState.history.push(newDoc);
     window.appState.currentDocIsAI = false;
     openDocument(docId);
-    saveHistory();
+    saveHistory(true);
     window.showToast('Blank cheatsheet created! Start typing.');
 }
 
@@ -695,7 +770,7 @@ async function handleSendChat() {
             try {
                 const sections = JSON.parse(result.substring(js, je + 1));
                 if (Array.isArray(sections) && sections.length > 0 && sections[0].title) {
-                    window.appState.canvasData = sections; renderCanvasNodes(); saveCurrentDocument(); updateWatermark();
+                    window.appState.canvasData = sections; renderCanvasNodes(); saveCurrentDocument(true); updateWatermark();
                     appendChat('ai', '✅ Cheatsheet updated!'); clearPendingFiles(); return;
                 }
             } catch (e) { }
@@ -722,6 +797,10 @@ function renderPendingFiles() {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('beforeunload', () => {
+        if (debouncedSaveHistory.pending()) debouncedSaveHistory.flush();
+    });
+
     window.appState.deviceId = getDeviceId();
     initGoogleSignIn();
 
@@ -755,7 +834,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Upgrade to Pro
     document.getElementById('upgrade-btn').addEventListener('click', showPaymentModal);
     // Back
-    document.getElementById('back-btn').addEventListener('click', () => { saveCurrentDocument(); toggleChat(false); switchToLanding(); });
+    document.getElementById('back-btn').addEventListener('click', () => { saveCurrentDocument(true); toggleChat(false); switchToLanding(); });
 
     // Toolbar — cols
     const mainCanvas = document.getElementById('main-canvas');

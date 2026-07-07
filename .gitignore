@@ -25,3 +25,7 @@ Thumbs.db
 # Gemini
 .gemini/
 .vercel
+pnpm-lock.yaml
+users.json
+verification/
+test-results/

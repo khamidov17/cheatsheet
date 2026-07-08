@@ -3,6 +3,10 @@ node_modules/
 
 # Database (local only)
 db.json
+users.json
+pnpm-lock.yaml
+verification/
+test-results/
 
 # Uploads
 uploads/
